@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-import json
-import os
-import traceback
-import requests
-import time
 import argparse
 import configparser
+import json
+import os
+import sys
+import time
+import traceback
+import platform
+
 import gnupg
 import pandas as pd
-import sys
+import requests
 from retrying import retry
+
 
 def checkArgument():
     '''
@@ -20,20 +23,30 @@ def checkArgument():
         exit()
     return 0
 
+
 def preSetup():
     '''
     Create necessary files and folder
     '''
     # message temp file
     if not os.path.exists('message.txt'):
-        with open('message.txt','w+') as f:
+        with open('message.txt', 'w+') as f:
             f.write('')
     # gnupg
     if not os.path.exists('gnupg'):
         os.mkdir('gnupg')
     global gpg
-    gpg = gnupg.GPG(gnupghome='./gnupg')
-	# set pandas display
+    systemName = platform.system()
+    if systemName == 'Windows':
+        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./gpg/gpg.exe")
+        print('Working in Windows.')
+    elif systemName == 'Linux':
+        gpg = gnupg.GPG(gnupghome='./gnupg')
+        print('Working in Linux.')
+    else:
+        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./gpg/gpg.exe")
+        print('Working in unknown system.')
+    # set pandas display
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 100)
     pd.set_option('display.width', 1000)
@@ -42,33 +55,53 @@ def preSetup():
     conf = configparser.ConfigParser()
     # argsparser 1/4
     global parser
-    parser = argparse.ArgumentParser(description="This is the help info for OpenMPRDB-Python-CLI.")
+    parser = argparse.ArgumentParser(
+        description="This is the help info for OpenMPRDB-Python-CLI.")
     # register sub keys 2/4
-    parser.add_argument('-u', '--uuid', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('--max', default='45',help=argparse.SUPPRESS)
-    parser.add_argument('-n', '--name', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('-r', '--reason', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('-s', '--score', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('-p', '--passphrase', default='',help=argparse.SUPPRESS)
-    parser.add_argument('-e', '--email', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('-c', '--choice', default='None',help=argparse.SUPPRESS)
-    parser.add_argument('-m', '--mode', default='manual',help=argparse.SUPPRESS)
-    parser.add_argument('-w', '--weight',default='None',help=argparse.SUPPRESS)
+    parser.add_argument('-u', '--uuid', default='None', help=argparse.SUPPRESS)
+    parser.add_argument('--max', default='45', help=argparse.SUPPRESS)
+    parser.add_argument('-n', '--name', default='None', help=argparse.SUPPRESS)
+    parser.add_argument('-r', '--reason', default='None',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-s', '--score', default='None',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-p', '--passphrase', default='',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-e', '--email', default='None',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-c', '--choice', default='None',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-m', '--mode', default='manual',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-w', '--weight', default='None',
+                        help=argparse.SUPPRESS)
     # register main keys 3/4
-    parser.add_argument('--key', action='store_true', default=False,help='>>Used to generate key pair and get lists.With key "-n name -e email -i choice -p passphrase".Choice input y to save and auto fill passphrase in the future,n will not.To get a list of keys, use key "-m list"')
-    parser.add_argument('--reg', action='store_true', default=False,help='>>Used to register to a remote server.With key "-n server_name",and optional key "-p passphrase"')
-    parser.add_argument('--new', action='store_true', default=False,help='>>Used to submit a new submission.With key "-n player_name/uuid -r reason -s score",and optional key "-p passphrase"')
-    parser.add_argument('--delete', action='store_true', default=False,help='>>Used to delete a submission that have submitted.With key “-u submit_uuid -r reason”,and optional key "-p passphrase"')
-    parser.add_argument('--shut', action='store_true', default=False,help='>>Used to delete yourself from the remote server.With key "-r reason",and optional key "-p passphrase"')
-    parser.add_argument('--list', action='store_true', default=False,help='>>Used to get all registered servers.With an optional key "--max number",it means how many servers to list.')
-    parser.add_argument('--detail', action='store_true', default=False,help='>>Used to get a detail of a submission.With key "-u submit_uuid"')
-    parser.add_argument('--listfrom', action='store_true', default=False,help='>>Used to get all submission from a specific server.With key "-u server_uuid"')
-    parser.add_argument('--update', action='store_true', default=False,help='>>Used to auto update the ban list.No key required.')
-    parser.add_argument('--getkey',action='store_true',default=False,help='>>Used to download public key from remote server.With key "-u ServerUUID -w Weight -c Choice",choice input 1 will save and import the key,choose 3 will only save the key as a file and save to the MPRDB folder.')
-    parser.add_argument('--setweight',action='store_true',default=False,help='>>Used to set or change weight for a specific server.With key "-u ServerUUID -w Weight"')
+    parser.add_argument('--key', action='store_true', default=False,
+                        help='>>Used to generate key pair and get lists.With key "-n name -e email -i choice -p passphrase".Choice input y to save and auto fill passphrase in the future,n will not.To get a list of keys, use key "-m list"')
+    parser.add_argument('--reg', action='store_true', default=False,
+                        help='>>Used to register to a remote server.With key "-n server_name",and optional key "-p passphrase"')
+    parser.add_argument('--new', action='store_true', default=False,
+                        help='>>Used to submit a new submission.With key "-n player_name/uuid -r reason -s score",and optional key "-p passphrase"')
+    parser.add_argument('--delete', action='store_true', default=False,
+                        help='>>Used to delete a submission that have submitted.With key “-u submit_uuid -r reason”,and optional key "-p passphrase"')
+    parser.add_argument('--shut', action='store_true', default=False,
+                        help='>>Used to delete yourself from the remote server.With key "-r reason",and optional key "-p passphrase"')
+    parser.add_argument('--list', action='store_true', default=False,
+                        help='>>Used to get all registered servers.With an optional key "--max number",it means how many servers to list.')
+    parser.add_argument('--detail', action='store_true', default=False,
+                        help='>>Used to get a detail of a submission.With key "-u submit_uuid"')
+    parser.add_argument('--listfrom', action='store_true', default=False,
+                        help='>>Used to get all submission from a specific server.With key "-u server_uuid"')
+    parser.add_argument('--update', action='store_true', default=False,
+                        help='>>Used to auto update the ban list.No key required.')
+    parser.add_argument('--getkey', action='store_true', default=False,
+                        help='>>Used to download public key from remote server.With key "-u ServerUUID -w Weight -c Choice",choice input 1 will save and import the key,choose 3 will only save the key as a file and save to the MPRDB folder.')
+    parser.add_argument('--setweight', action='store_true', default=False,
+                        help='>>Used to set or change weight for a specific server.With key "-u ServerUUID -w Weight"')
     # load args 4/4
     global args
     args = parser.parse_args()
+
 
 def helpInfo():
     info = '''
@@ -102,6 +135,7 @@ def helpInfo():
     '''
     print(info)
 
+
 def keyManagement():
     '''
     Solving argument --key and run specific function.
@@ -119,11 +153,12 @@ def keyManagement():
         print('Missing argument --name --email --passphrase or --choice')
         print('Check it in help page.')
     else:
-        generateKeys(arg_name,arg_email,arg_passphrase,arg_choice)
+        generateKeys(arg_name, arg_email, arg_passphrase, arg_choice)
 
     return 0
 
-def generateKeys(name,email,passphrase,choice):
+
+def generateKeys(name, email, passphrase, choice):
     '''
     Generate a new pair of keys.
     '''
@@ -134,28 +169,32 @@ def generateKeys(name,email,passphrase,choice):
     fingerprint_raw = gpg.gen_key(input_data)
     fingerprint = str(fingerprint_raw)
     ascii_armored_public_keys = gpg.export_keys(fingerprint)
-    ascii_armored_private_keys = gpg.export_keys(fingerprint, True, passphrase=passphrase)
-	# export keys to files
+    ascii_armored_private_keys = gpg.export_keys(
+        fingerprint, True, passphrase=passphrase)
+    # export keys to files
     with open('public_key.asc', 'w+') as f:
         f.write(ascii_armored_public_keys)
     with open('private_key.asc', 'w+') as d:
         d.write(ascii_armored_private_keys)
-	# edit file mprdb.ini
+        # edit file mprdb.ini
     print('Done! Your keys have been saved.Your keyID: '+fingerprint[-16:])
     if choice == 'y':
         conf.read('mprdb.ini')
-        conf.set('mprdb','save_passphrase','True')
-        conf.set('mprdb','passphrase',passphrase)
-        conf.set('mprdb','serverkeyid',fingerprint[-16:]) # KeyID is the last 16 bits of fingerprint
+        conf.set('mprdb', 'save_passphrase', 'True')
+        conf.set('mprdb', 'passphrase', passphrase)
+        # KeyID is the last 16 bits of fingerprint
+        conf.set('mprdb', 'serverkeyid', fingerprint[-16:])
         conf.write(open('mprdb.ini', 'w'))
         print('Your passphrase will be auto filled in the future.')
     if choice == 'n':
         conf.read('mprdb.ini')
-        conf.set('mprdb','save_passphrase','False')
-        conf.set('mprdb','passphrase','')
-        conf.set('mprdb','serverkeyid',fingerprint[-16:]) # KeyID is the last 16 bits of fingerprint
+        conf.set('mprdb', 'save_passphrase', 'False')
+        conf.set('mprdb', 'passphrase', '')
+        # KeyID is the last 16 bits of fingerprint
+        conf.set('mprdb', 'serverkeyid', fingerprint[-16:])
         conf.write(open('mprdb.ini', 'w'))
     return 0
+
 
 def listKeys():
     '''
@@ -166,22 +205,25 @@ def listKeys():
 
     print("Public Keys:")
     df = pd.DataFrame(public_keys)
-    df1 = df.loc[:, ['keyid', 'length', 'uids', 'trust', 'date', 'fingerprint']]
+    df1 = df.loc[:, ['keyid', 'length', 'uids',
+                     'trust', 'date', 'fingerprint']]
     print(df1)
 
     print("Private Keys:")
     df = pd.DataFrame(private_keys)
-    df1 = df.loc[:, ['keyid', 'length', 'uids', 'trust', 'date', 'fingerprint']]
+    df1 = df.loc[:, ['keyid', 'length', 'uids',
+                     'trust', 'date', 'fingerprint']]
     print(df1)
     return 0
+
 
 def loadPassphrase():
     '''
     Load passphrase.If saved,just load; if not saved,load from argument.
     '''
     conf.read('mprdb.ini')
-    if conf.get('mprdb','save_passphrase')=='True':
-        passphrase = conf.get('mprdb','passphrase')
+    if conf.get('mprdb', 'save_passphrase') == 'True':
+        passphrase = conf.get('mprdb', 'passphrase')
         print('Loading passphrase succeed.')
     elif args.passphrase != '':
         passphrase = args.passphrase
@@ -189,6 +231,7 @@ def loadPassphrase():
         print('Missing argument --passphrase.')
         exit()
     return passphrase
+
 
 def generateRegisterJson():
     '''
@@ -201,7 +244,7 @@ def generateRegisterJson():
     keycount = 0
     for line in open('public_key.asc'):
         keycount += 1
-    
+
     sigstr = []
     for line in open('message.txt.asc'):
         line = line[:-1]  # delete"\n"
@@ -221,20 +264,22 @@ def generateRegisterJson():
     message = "-----BEGIN PGP SIGNED MESSAGE-----\n"
     message = message + sigstr[1] + "\n\n" + sigstr[3] + "\n" + signature
 
-
     pubkey = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n"
     for num in range(2, keycount - 2):
         pubkey = pubkey + keystr[num]
-    pubkey = pubkey + "\n" + keystr[-2] + "\n-----END PGP PUBLIC KEY BLOCK-----"
-    
+    pubkey = pubkey + "\n" + keystr[-2] + \
+        "\n-----END PGP PUBLIC KEY BLOCK-----"
+
     data = json.dumps({'message': message, 'public_key': pubkey},
-                  sort_keys=True, indent=2, separators=(',', ': '))
+                      sort_keys=True, indent=2, separators=(',', ': '))
     return data
 
+
 @retry(stop_max_attempt_number=3)
-def putData(url,data,headers):
+def putData(url, data, headers):
     response = requests.put(url, data=data, headers=headers, timeout=5)
     return response
+
 
 def registerServer():
     '''
@@ -252,7 +297,8 @@ def registerServer():
     keyid = conf.get('mprdb', 'ServerKeyId')
     # sign message
     with open('message.txt', 'rb') as f:
-        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',passphrase=passphrase)
+        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',
+                      passphrase=passphrase)
     # check output file exists
     if not os.path.exists('message.txt.asc'):
         print('Failed to sign file. Check your key and passphrase.')
@@ -261,8 +307,8 @@ def registerServer():
     data = generateRegisterJson()
     url = "https://test.openmprdb.org/v1/server/register"
     headers = {"Content-Type": "application/json"}
-    res = putData(url,data,headers)
-    
+    res = putData(url, data, headers)
+
     try:
         response = res.json()
     except:
@@ -285,10 +331,12 @@ def registerServer():
         print('Reason : '+response.get("reason"))
     return 0
 
+
 @retry(stop_max_attempt_number=3)
 def getData(url):
     response = requests.get(url)
     return response
+
 
 def getPlayerName(uuid):
     # get player name from uuid
@@ -301,6 +349,7 @@ def getPlayerName(uuid):
         result = response.json()
         player_name = result["name"]
     return player_name
+
 
 def getPlayerUUID(name):
     # get player uuid from name
@@ -321,17 +370,18 @@ def getPlayerUUID(name):
         exit()
     return player_uuid
 
+
 def newSubmit():
     '''
     Put new submit to remote server
     '''
     # check arguments
-    if args.name =='None' or args.reason == 'None' or args.score == 'None':
+    if args.name == 'None' or args.reason == 'None' or args.score == 'None':
         print('Missing parameter : --name or --reason or --score')
         exit()
 
     # load arguments and set variables
-    player_info = args.name # set player name or player uuid to player_info
+    player_info = args.name  # set player name or player uuid to player_info
     comment = args.reason
     passphrase = args.passphrase
     try:
@@ -339,14 +389,13 @@ def newSubmit():
     except:
         print('Score invalid ! Please input it in range [-1,0) and (0,1]')
         exit()
-    
 
     player_name = ''
     player_uuid = ''
     conf.read('mprdb.ini')
     server_uuid = conf.get('mprdb', 'serveruuid')
     server_name = conf.get('mprdb', 'servername')
-    
+
     # if input player's uuid , get player's name , conversely
     if len(player_info) == 36 or len(player_info) == 32:
         player_name = getPlayerName(player_info)
@@ -369,7 +418,7 @@ def newSubmit():
     print("Points:" + str(score))
     print("Comment:" + comment)
     print("=============================")
-    try: 
+    try:
         input("Press any key to submit , use Ctrl+C to cancel.")
     except:
         exit()
@@ -377,26 +426,27 @@ def newSubmit():
     # write message
     with open("message.txt", 'r+', encoding='utf-8') as f:
         f.truncate(0)
-        f.write("uuid: " + server_uuid +'\n')
-        f.write("timestamp: " + ticks +'\n')
-        f.write("player_uuid: " + player_uuid +'\n')
-        f.write("points: " + str(score) +'\n')
+        f.write("uuid: " + server_uuid + '\n')
+        f.write("timestamp: " + ticks + '\n')
+        f.write("player_uuid: " + player_uuid + '\n')
+        f.write("points: " + str(score) + '\n')
         f.write("comment: " + comment)
-    
+
     conf.read('mprdb.ini')
     keyid = conf.get('mprdb', 'ServerKeyId')
     passphrase = loadPassphrase()
 
     # sign message
     with open('message.txt', 'rb') as f:
-        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',passphrase=passphrase)
+        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',
+                      passphrase=passphrase)
 
     url = "https://test.openmprdb.org/v1/submit/new"
     headers = {"Content-Type": "text/plain"}
     with open("message.txt.asc", "r", encoding='utf-8') as f:
         data = f.read()
         data = data.encode('utf-8')
-        
+
     res = putData(url, data, headers)
     try:
         response = res.json()
@@ -406,9 +456,9 @@ def newSubmit():
         exit()
 
     if not os.path.exists('submit.json'):
-        with open('submit.json','w+') as f:
+        with open('submit.json', 'w+') as f:
             f.write('{}')
-    commit={}
+    commit = {}
 
     status = response.get("status")
     if status == "OK":
@@ -416,18 +466,19 @@ def newSubmit():
         print("Submitted successfully! The UUID submitted this time is: "+submit_uuid)
         eventtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-        with open('submit.json','r',encoding='utf-8') as f:
-            commit=json.loads(f.read())
+        with open('submit.json', 'r', encoding='utf-8') as f:
+            commit = json.loads(f.read())
         info = {'Name': player_name, 'PlayerUUID': player_uuid, 'Points': score, 'Timestamp': ticks, 'Time': eventtime,
-             'Comment': comment, 'SubmitUUID': submit_uuid, 'ServerUUID': server_uuid, 'ServerName':server_name}
-        commit[submit_uuid]=info
+                'Comment': comment, 'SubmitUUID': submit_uuid, 'ServerUUID': server_uuid, 'ServerName': server_name}
+        commit[submit_uuid] = info
 
-        with open('submit.json','w+',encoding='utf-8') as fd:
+        with open('submit.json', 'w+', encoding='utf-8') as fd:
             fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
     if status == "NG":
         print("400 Bad Request or 401 Unauthorized")
 
     return 0
+
 
 def deleteSubmit():
     '''
@@ -436,8 +487,8 @@ def deleteSubmit():
     delete_uuid = args.uuid
     comment = args.reason
 
-    with open('submit.json','r',encoding='utf-8') as f:
-            submit=json.loads(f.read())
+    with open('submit.json', 'r', encoding='utf-8') as f:
+        submit = json.loads(f.read())
 
     # exit if not found
     if not submit.get(delete_uuid):
@@ -445,7 +496,7 @@ def deleteSubmit():
         exit()
 
     if not os.path.exists('submit-others.json'):
-        with open('submit-others.json','w+') as f:
+        with open('submit-others.json', 'w+') as f:
             f.write('{}')
 
     # load local server name and server uuid from local file
@@ -459,12 +510,12 @@ def deleteSubmit():
     print('Delete reason: '+comment)
     df = pd.DataFrame.from_dict(submit[delete_uuid], orient='index')
     print(df)
-    
+
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
         exit()
-    
+
     # writing message
     ticks = str(int(time.time()))
     with open("message.txt", 'r+') as f:
@@ -472,14 +523,15 @@ def deleteSubmit():
         f.write("timestamp: " + ticks)
         f.write("\n")
         f.write("comment: " + comment)
-    
+
     conf.read('mprdb.ini')
     keyid = conf.get('mprdb', 'ServerKeyId')
     passphrase = loadPassphrase()
     # sign message
     with open('message.txt', 'rb') as f:
-        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',passphrase=passphrase)
-    
+        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',
+                      passphrase=passphrase)
+
     with open("message.txt.asc", "r") as f:
         data = f.read()
     url = "https://test.openmprdb.org/v1/submit/uuid/" + delete_uuid
@@ -494,9 +546,9 @@ def deleteSubmit():
         print(res)
         exit()
 
-    commit={}
-    with open('submit-others.json','r',encoding='utf-8') as f:
-        commit=json.loads(f.read())
+    commit = {}
+    with open('submit-others.json', 'r', encoding='utf-8') as f:
+        commit = json.loads(f.read())
 
     # check status
     status = response.get("status")
@@ -505,22 +557,23 @@ def deleteSubmit():
         print("Deleted commit successfully! The UUID submitted this time is: "+submit_uuid)
         eventtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         info = {'Type': "Delete server", 'ServerName': server_name, 'ServerUUID': server_uuid,
-                            'Points withdrawn': submit[delete_uuid]["Points"],
-                            'Original reason': submit[delete_uuid]["Comment"],
-                            'Playername': submit[delete_uuid]["Name"], 'Timestamp': ticks, 'Time': eventtime,
-                            'Reason for revocation': comment, 'SubmitUUID': submit_uuid}
-        commit[submit_uuid]=info
-        with open('submit-others.json','w+',encoding='utf-8') as fd:
+                'Points withdrawn': submit[delete_uuid]["Points"],
+                'Original reason': submit[delete_uuid]["Comment"],
+                'Playername': submit[delete_uuid]["Name"], 'Timestamp': ticks, 'Time': eventtime,
+                'Reason for revocation': comment, 'SubmitUUID': submit_uuid}
+        commit[submit_uuid] = info
+        with open('submit-others.json', 'w+', encoding='utf-8') as fd:
             fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
 
     if status == "NG":
         print("Submit not found in remote server , or Unauthorized")
-     
+
 
 @retry(stop_max_attempt_number=3)
 def deleteData(url, data, headers):
     response = requests.delete(url, data=data, headers=headers, timeout=5)
     return response
+
 
 if __name__ == "__main__":
     checkArgument()
