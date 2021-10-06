@@ -236,6 +236,8 @@ def loadPassphrase():
 def generateRegisterJson():
     '''
     Generate register json in a correct format
+
+    Read file line by line and add '\n' in the end , then join them in one line.
     '''
     public_key = ''
     with open('public_key.asc','r') as f:
@@ -251,7 +253,6 @@ def generateRegisterJson():
 
     data = json.dumps({'message': message, 'public_key': public_key},
                       sort_keys=True, indent=2, separators=(',', ': '))
-    print(data)
     return data
 
 
