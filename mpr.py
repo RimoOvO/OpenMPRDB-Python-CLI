@@ -237,41 +237,21 @@ def generateRegisterJson():
     '''
     Generate register json in a correct format
     '''
-    sigcount = 0
-    for line in open('message.txt.asc'):
-        sigcount += 1
+    public_key = ''
+    with open('public_key.asc','r') as f:
+        for line in f:
+            line=line.strip()
+            public_key = public_key + line + '\n'
+    
+    message = ''
+    with open('message.txt.asc','r') as f:
+        for line in f:
+            line=line.strip()
+            message = message + line + '\n'
 
-    keycount = 0
-    for line in open('public_key.asc'):
-        keycount += 1
-
-    sigstr = []
-    for line in open('message.txt.asc'):
-        line = line[:-1]  # delete"\n"
-        sigstr.append(line)
-
-    keystr = []
-    for line in open('public_key.asc'):
-        line = line[:-1]  # delete"\n"
-        keystr.append(line)
-
-    signature = "-----BEGIN PGP SIGNATURE-----\n\n"
-    for num in range(6, sigcount - 2):
-        signature = signature + sigstr[num]
-    signature = signature + "\n" + \
-        sigstr[sigcount - 2] + "\n-----END PGP SIGNATURE-----"
-
-    message = "-----BEGIN PGP SIGNED MESSAGE-----\n"
-    message = message + sigstr[1] + "\n\n" + sigstr[3] + "\n" + signature
-
-    pubkey = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n"
-    for num in range(2, keycount - 2):
-        pubkey = pubkey + keystr[num]
-    pubkey = pubkey + "\n" + keystr[-2] + \
-        "\n-----END PGP PUBLIC KEY BLOCK-----"
-
-    data = json.dumps({'message': message, 'public_key': pubkey},
+    data = json.dumps({'message': message, 'public_key': public_key},
                       sort_keys=True, indent=2, separators=(',', ': '))
+    print(data)
     return data
 
 

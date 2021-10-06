@@ -10,3 +10,4 @@ message.txt
 mprdb.ini
 ..gitignore.swp
 !players_map.json
+test.py
