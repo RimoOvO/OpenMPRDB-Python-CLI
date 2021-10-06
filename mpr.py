@@ -38,14 +38,14 @@ def preSetup():
     global gpg
     systemName = platform.system()
     if systemName == 'Windows':
-        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./gpg/gpg.exe")
+        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./wingpg/gpg.exe")
         print('Working in Windows.')
     elif systemName == 'Linux':
         gpg = gnupg.GPG(gnupghome='./gnupg')
         print('Working in Linux.')
     else:
-        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./gpg/gpg.exe")
-        print('Working in unknown system.')
+        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./wingpg/gpg.exe")
+        print('Working in ' + systemName)
     # set pandas display
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 100)
@@ -452,7 +452,7 @@ def newSubmit():
         response = res.json()
     except:
         print('An error occurred when putting data.')
-        print(response)
+        print(res)
         exit()
 
     if not os.path.exists('submit.json'):
