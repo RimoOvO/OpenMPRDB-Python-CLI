@@ -59,7 +59,7 @@ def preSetup():
         description="This is the help info for OpenMPRDB-Python-CLI.")
     # register sub keys 2/4
     parser.add_argument('-u', '--uuid', default='None', help=argparse.SUPPRESS)
-    parser.add_argument('--max', default='45', help=argparse.SUPPRESS)
+    parser.add_argument('--max', default='50', help=argparse.SUPPRESS)
     parser.add_argument('-n', '--name', default='None', help=argparse.SUPPRESS)
     parser.add_argument('-r', '--reason', default='None',
                         help=argparse.SUPPRESS)
@@ -658,7 +658,7 @@ def listServer():
         print(res)
         exit()
 
-    df = pd.DataFrame(res["servers"])
+    df = pd.DataFrame(response["servers"])
     df1 = df.loc[:, ['id', 'key_id', 'server_name', 'uuid']]  # hide key "public_key" here, it's useless now
     print(df1)
     return 0
