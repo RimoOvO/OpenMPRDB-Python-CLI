@@ -132,6 +132,9 @@ def helpInfo():
     
     --shut
       Delete your server from remote server : -r [Reason] [-p [Passphrase]]
+
+    --list
+      List servers that registered from remote server : [--max [Max amount to show]]  
     '''
     print(info)
 
@@ -640,6 +643,26 @@ def deleteServer():
 
     return 0
 
+def listServer():
+    max = str(args.max)
+    url = "https://test.openmprdb.org/v1/server/list" + "?limit=" + max
+
+    print("Getting servers list...")
+    print("The last " + max + " servers will be displayed.")
+    res = getData(url)
+    
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when getting server list.')
+        print(res)
+        exit()
+
+    df = pd.DataFrame(res["servers"])
+    df1 = df.loc[:, ['id', 'key_id', 'server_name', 'uuid']]  # hide key "public_key" here, it's useless now
+    print(df1)
+    return 0
+
 if __name__ == "__main__":
     checkArgument()
     preSetup()
@@ -654,3 +677,5 @@ if __name__ == "__main__":
         deleteSubmit()
     if args.shut == True:
         deleteServer()
+    if args.list == True:
+        listServer()
