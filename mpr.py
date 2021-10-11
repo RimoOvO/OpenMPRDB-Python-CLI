@@ -457,6 +457,8 @@ def newSubmit():
             fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
     if status == "NG":
         print("400 Bad Request or 401 Unauthorized")
+        print('Status : '+response.get("status"))
+        print('Reason : '+response.get("reason"))
 
     return 0
 
@@ -548,6 +550,10 @@ def deleteSubmit():
 
     if status == "NG":
         print("Submit not found in remote server , or Unauthorized")
+        print('Status : '+response.get("status"))
+        print('Reason : '+response.get("reason"))
+    
+    return 0
 
 
 @retry(stop_max_attempt_number=3)
@@ -555,6 +561,84 @@ def deleteData(url, data, headers):
     response = requests.delete(url, data=data, headers=headers, timeout=5)
     return response
 
+def deleteServer():
+    '''
+    Delete yourself from the remote server.
+    '''
+    comment = args.reason
+
+    if not os.path.exists('submit-others.json'):
+        with open('submit-others.json', 'w+') as f:
+            f.write('{}')
+
+    # load local server name and server uuid from local file
+    conf.read('mprdb.ini')
+    server_uuid = conf.get('mprdb', 'serveruuid')
+    server_name = conf.get('mprdb', 'servername')
+
+    print("=====Confirm to delete server=====")
+    print("Server UUID:" + server_uuid)
+    print("Server name:" + server_name)
+    print("Comment:" + comment)
+    try:
+        input("Press any key to continue , use Ctrl+C to cancel.")
+    except:
+        exit()
+    
+    # writing message
+    ticks = str(int(time.time()))
+    with open("message.txt", 'r+') as f:
+        f.truncate(0)
+        f.write("timestamp: " + ticks)
+        f.write("\n")
+        f.write("comment: " + comment)
+    
+    conf.read('mprdb.ini')
+    keyid = conf.get('mprdb', 'ServerKeyId')
+    passphrase = loadPassphrase()
+
+    # sign message
+    with open('message.txt', 'rb') as f:
+        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',
+                      passphrase=passphrase)
+
+    with open("message.txt.asc", "r") as f:
+        data = f.read()
+    url = "https://test.openmprdb.org/v1/server/uuid/" + server_uuid
+    headers = {"Content-Type": "text/plain"}
+
+    res = deleteData(url, data, headers)
+
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when deleting server from remote server.')
+        print(res)
+        exit()
+
+    commit = {}
+    with open('submit-others.json', 'r', encoding='utf-8') as f:
+        commit = json.loads(f.read())
+
+    # check status
+    status = response.get("status")
+    if status == "OK":
+        submit_uuid = response.get("uuid")
+        print("Deleted server successfully! The UUID submitted this time is: "+submit_uuid)
+        eventtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        
+        info={'Type': "Delete submit", 'ServerName': server_name, 'ServerUUID': server_uuid, 'Timestamp': ticks,
+             'Time': eventtime, 'Comment': comment, 'SubmitUUID': submit_uuid}
+        commit[submit_uuid]=info
+        with open('submit-others.json','w+',encoding='utf-8') as fd:
+            fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
+
+    if status == "NG":
+        print("Server not found,or Unauthorized")
+        print('Status : '+response.get("status"))
+        print('Reason : '+response.get("reason"))
+
+    return 0
 
 if __name__ == "__main__":
     checkArgument()
@@ -568,3 +652,5 @@ if __name__ == "__main__":
         newSubmit()
     if args.delete == True:
         deleteSubmit()
+    if args.shut == True:
+        deleteServer()
