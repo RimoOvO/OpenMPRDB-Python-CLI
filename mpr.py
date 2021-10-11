@@ -38,13 +38,13 @@ def preSetup():
     global gpg
     systemName = platform.system()
     if systemName == 'Windows':
-        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./wingpg/gpg.exe")
+        gpg = gnupg.GPG(gnupghome='./gnupg', gpgbinary="./wingpg/gpg.exe")
         print('Working in Windows.')
     elif systemName == 'Linux':
         gpg = gnupg.GPG(gnupghome='./gnupg')
         print('Working in Linux.')
     else:
-        gpg = gnupg.GPG(gnupghome='./gnupg',gpgbinary="./wingpg/gpg.exe")
+        gpg = gnupg.GPG(gnupghome='./gnupg', gpgbinary="./wingpg/gpg.exe")
         print('Working in ' + systemName)
     # set pandas display
     pd.set_option('display.max_rows', 500)
@@ -243,15 +243,15 @@ def generateRegisterJson():
     Read file line by line and add '\n' in the end , then join them in one line.
     '''
     public_key = ''
-    with open('public_key.asc','r') as f:
+    with open('public_key.asc', 'r') as f:
         for line in f:
-            line=line.strip()
+            line = line.strip()
             public_key = public_key + line + '\n'
-    
+
     message = ''
-    with open('message.txt.asc','r') as f:
+    with open('message.txt.asc', 'r') as f:
         for line in f:
-            line=line.strip()
+            line = line.strip()
             message = message + line + '\n'
 
     data = json.dumps({'message': message, 'public_key': public_key},
@@ -555,7 +555,7 @@ def deleteSubmit():
         print("Submit not found in remote server , or Unauthorized")
         print('Status : '+response.get("status"))
         print('Reason : '+response.get("reason"))
-    
+
     return 0
 
 
@@ -563,6 +563,7 @@ def deleteSubmit():
 def deleteData(url, data, headers):
     response = requests.delete(url, data=data, headers=headers, timeout=5)
     return response
+
 
 def deleteServer():
     '''
@@ -587,7 +588,7 @@ def deleteServer():
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
         exit()
-    
+
     # writing message
     ticks = str(int(time.time()))
     with open("message.txt", 'r+') as f:
@@ -595,7 +596,7 @@ def deleteServer():
         f.write("timestamp: " + ticks)
         f.write("\n")
         f.write("comment: " + comment)
-    
+
     conf.read('mprdb.ini')
     keyid = conf.get('mprdb', 'ServerKeyId')
     passphrase = loadPassphrase()
@@ -629,11 +630,11 @@ def deleteServer():
         submit_uuid = response.get("uuid")
         print("Deleted server successfully! The UUID submitted this time is: "+submit_uuid)
         eventtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        
-        info={'Type': "Delete submit", 'ServerName': server_name, 'ServerUUID': server_uuid, 'Timestamp': ticks,
-             'Time': eventtime, 'Comment': comment, 'SubmitUUID': submit_uuid}
-        commit[submit_uuid]=info
-        with open('submit-others.json','w+',encoding='utf-8') as fd:
+
+        info = {'Type': "Delete submit", 'ServerName': server_name, 'ServerUUID': server_uuid, 'Timestamp': ticks,
+                'Time': eventtime, 'Comment': comment, 'SubmitUUID': submit_uuid}
+        commit[submit_uuid] = info
+        with open('submit-others.json', 'w+', encoding='utf-8') as fd:
             fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
 
     if status == "NG":
@@ -643,6 +644,7 @@ def deleteServer():
 
     return 0
 
+
 def listServer():
     max = str(args.max)
     url = "https://test.openmprdb.org/v1/server/list" + "?limit=" + max
@@ -650,7 +652,7 @@ def listServer():
     print("Getting servers list...")
     print("The last " + max + " servers will be displayed.")
     res = getData(url)
-    
+
     try:
         response = res.json()
     except:
@@ -659,9 +661,11 @@ def listServer():
         exit()
 
     df = pd.DataFrame(response["servers"])
-    df1 = df.loc[:, ['id', 'key_id', 'server_name', 'uuid']]  # hide key "public_key" here, it's useless now
+    # hide key "public_key" here, it's useless now
+    df1 = df.loc[:, ['id', 'key_id', 'server_name', 'uuid']]
     print(df1)
     return 0
+
 
 if __name__ == "__main__":
     checkArgument()
