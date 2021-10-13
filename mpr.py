@@ -115,12 +115,13 @@ def helpInfo():
       Example 3 : python mpr.py --new -n Alex -r Stealing -s -0.8 -p 12345678
 
     --key 
-      Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase]
+      Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [remarks]]
       List all keys : -m list
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
-    
+        [remarks] : Key notes, it's optional.
+
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
 
@@ -149,6 +150,7 @@ def keyManagement():
     arg_passphrase = args.passphrase
     arg_choice = str(args.choice)
     arg_mode = args.mode
+    arg_comment = args.reason 
 
     if arg_mode == 'list':
         listKeys()
@@ -157,22 +159,27 @@ def keyManagement():
         print('Missing argument --name --email --passphrase or --choice')
         print('Check it in help page.')
     else:
-        generateKeys(arg_name, arg_email, arg_passphrase, arg_choice)
+        generateKeys(arg_name, arg_email, arg_passphrase, arg_choice, arg_comment)
 
     return 0
 
 
-def generateKeys(name, email, passphrase, choice):
+def generateKeys(name, email, passphrase, choice, comment):
     '''
     Generate a new pair of keys.
     '''
     # generate keys
     input_data = gpg.gen_key_input(name_email=email, passphrase=passphrase, name_real=name,
-                                   key_length=2048)
+                                   key_length=2048,name_comment=comment)
     print(input_data)
-    # export keys to memory
+    # get fingerprint
     fingerprint_raw = gpg.gen_key(input_data)
     fingerprint = str(fingerprint_raw)
+    # check status
+    if fingerprint == '':
+        print('Failed! Try again or check the folders gnupg and wingpg.')
+        exit()
+    # export keys to memory
     ascii_armored_public_keys = gpg.export_keys(fingerprint)
     ascii_armored_private_keys = gpg.export_keys(
         fingerprint, True, passphrase=passphrase)
@@ -181,7 +188,7 @@ def generateKeys(name, email, passphrase, choice):
         f.write(ascii_armored_public_keys)
     with open('private_key.asc', 'w+') as d:
         d.write(ascii_armored_private_keys)
-        # edit file mprdb.ini
+    # edit file mprdb.ini
     print('Done! Your keys have been saved.Your keyID: '+fingerprint[-16:])
     if choice == 'y':
         conf.read('mprdb.ini')
