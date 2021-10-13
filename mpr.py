@@ -8,7 +8,7 @@ import time
 import traceback
 import platform
 import base64
-
+import shutil
 import gnupg
 import pandas as pd
 import requests
@@ -102,25 +102,32 @@ def preSetup():
     # load args 4/4
     global args
     args = parser.parse_args()
+    # folder : TrustPublicKey
+    if not os.path.exists('TrustPublicKey'):
+        os.mkdir('TrustPublicKey')
+    # file : weight.json
+    if not os.path.exists('weight.json'):
+    	with open('weight.json','w+') as f:
+        	f.write('{}')
 
 
 def helpInfo():
     info = '''
     This is the help info for OpenMPRDB-Python-CLI. 
-      Tip : if you saved passphrase , -p is no longer required.
+      Tip : If you saved passphrase , -p is no longer required.
     
     Example:
-      Example 1 : python mpr.py --key -n Steve -e steve@email.com -c y -p 12345678
+      Example 1 : python mpr.py --key -n Steve -e steve@email.com -c y -p 12345678 -r keyForServer
       Example 2 : python mpr.py --key -m list
       Example 3 : python mpr.py --new -n Alex -r Stealing -s -0.8 -p 12345678
 
     --key 
-      Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [remarks]]
+      Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
       List all keys : -m list
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
-        [remarks] : Key notes, it's optional.
+        [Remarks] : Key notes, it's optional.
 
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
@@ -136,9 +143,14 @@ def helpInfo():
       Delete your server from remote server : -r [Reason] [-p [Passphrase]]
 
     --list
-      List servers that registered from remote server : [--max [Max amount to show]]  
+      List servers that registered from remote server : [--max [Max amount to show]] 
+      
+    --getKey
+      Download server public key that you trusted from remote server. : -u [Server UUID] -w [Weight] -c [Choice]
+      [Choice] : If you want to import the key : leave empty ; if you want to just download : use -c download or -c d
     '''
     print(info)
+    return 0
 
 
 def keyManagement():
@@ -657,6 +669,10 @@ def deleteServer():
 
 
 def listServer():
+    '''
+    List servers that registered in remote server.
+    Use --max to limit the amount to display.
+    '''
     max = str(args.max)
     url = "https://test.openmprdb.org/v1/server/list" + "?limit=" + max
 
@@ -677,6 +693,153 @@ def listServer():
     print(df1)
     return 0
 
+def weightServer(server_uuid,weight):
+    '''
+    Set weight for a specific server.
+    '''
+    with open("weight.json",'r') as f:
+        key_list=json.loads(f.read())
+
+    key_list[server_uuid]=weight
+    
+    with open("weight.json", "w") as fp:
+        fp.write(json.dumps(key_list,indent=4))
+    return 0
+
+def serverInfoMap(res):
+    '''
+    Create some dicts , to match data
+    "uuid":"public_key"
+    "key_id":"public_key"
+    "uuid":"name"
+    "key_id":"name"
+    "key_id":"uuid"
+    '''
+    uuid_dict = {}  # dict "uuid":"public_key"
+    for items in res["servers"]:
+        uuid = str(items["uuid"])
+        public_key = str(items["public_key"])
+        uuid_dict[uuid] = public_key
+
+    '''
+    keyid_dict = {}  # dict "key_id":"public_key"
+    for items in res["servers"]:
+        keyid = str(items["key_id"])
+        public_key = str(items["public_key"])
+        keyid_dict[keyid] = public_key
+    '''
+
+    uuid_name_dict = {}  # dict "uuid":"name"
+    for items in res["servers"]:
+        uuid = str(items["uuid"])
+        name = str(items["server_name"])
+        uuid_name_dict[uuid] = name
+
+    keyid_name_dict = {}  # dict "key_id":"name"
+    for items in res["servers"]:
+        keyid = str(items["key_id"])
+        name = str(items["server_name"])
+        keyid_name_dict[keyid] = name
+
+    keyid_uuid_dict = {}  # dict "key_id":"uuid"
+    for items in res["servers"]:
+        keyid = str(items["key_id"])
+        uuid = str(items["uuid"])
+        keyid_uuid_dict[keyid] = uuid
+
+    return uuid_dict,uuid_name_dict,keyid_name_dict,keyid_uuid_dict
+
+def downloadKey(server_uuid,uuid_dict):
+    '''
+    Save server public key as a file and use server uuid as its file name.
+    '''
+    file_name = server_uuid
+    with open(file_name, 'w') as f:
+        f.write(uuid_dict[server_uuid])
+    return 0
+
+def importKey(server_uuid):
+    '''
+    Import the server public key to local database.
+    '''
+    filepath = "./TrustPublicKey/" + server_uuid  # import key file
+    key_data = open(filepath).read()
+    import_result = gpg.import_keys(key_data)
+    result = import_result.results
+    result = result[0]
+    print('Fingerprint: ' + result['fingerprint'])
+    print('StateCode: ' + result['ok'])
+    print('Result: ' + result['text'])
+    return 0
+
+def getServerKey():
+    '''
+    Download server public key that you trusted from remote server.
+    mode : save or only download
+    '''
+    serverid = args.uuid # can be long or short
+    weight = float(args.weight)
+    choice = args.choice
+    
+    if choice == 'download' or choice == 'd': # check in download mode
+        if args.uuid == 'None':
+            print('Missing argument --uuid.')
+            exit()
+    elif args.uuid == 'None' or args.weight == 'None' : # check in normal mode
+        print('Missing argument --uuid or --weight.')
+        exit()
+    
+    if weight <= 0 or weight > 5:
+        print('Invalid weight value . It should be in range (0,5] ')
+        exit()
+
+    url = "https://test.openmprdb.org/v1/server/list"
+    res = getData(url)
+
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when getting server list.')
+        print(res)
+        exit()
+
+    uuid_dict,uuid_name_dict,keyid_name_dict,keyid_uuid_dict = serverInfoMap(response)
+    
+    # two kinds of uuid , long:36 and short:16
+    if len(serverid) == 16:
+        server_name = keyid_name_dict[serverid]
+        server_uuid = keyid_uuid_dict[serverid]
+    if len(serverid) == 36:
+        server_name = uuid_name_dict[serverid]
+        server_uuid = serverid
+    
+    print("=====Confirm the Server Info=====")
+    print("Server Name:" + server_name)
+    print("Server UUID:" + server_uuid)
+    print("Server key_id:" + serverid)
+    print("Public key block:")
+    print(uuid_dict[server_uuid])
+    try:
+        input("Press any key to continue , use Ctrl+C to cancel.")
+    except:
+        exit()
+
+    if choice == 'd' or choice == 'download': # only download key as a file
+        downloadKey(server_uuid,uuid_dict)
+        print('Public key has saved to file.')
+        exit()
+
+    if choice == 'None': # save and import
+        downloadKey(server_uuid,uuid_dict)
+        try:
+            shutil.move(server_uuid,"TrustPublicKey")
+        except:
+            print('Already saved.')
+            os.remove(server_uuid)
+        importKey(server_uuid)
+        weightServer(server_uuid,weight)
+    
+    return 0
 
 if __name__ == "__main__":
     checkArgument()
@@ -693,3 +856,5 @@ if __name__ == "__main__":
         deleteServer()
     if args.list == True:
         listServer()
+    if args.getkey == True:
+        getServerKey()
