@@ -7,6 +7,7 @@ import sys
 import time
 import traceback
 import platform
+import base64
 
 import gnupg
 import pandas as pd
@@ -168,6 +169,7 @@ def generateKeys(name, email, passphrase, choice):
     # generate keys
     input_data = gpg.gen_key_input(name_email=email, passphrase=passphrase, name_real=name,
                                    key_length=2048)
+    print(input_data)
     # export keys to memory
     fingerprint_raw = gpg.gen_key(input_data)
     fingerprint = str(fingerprint_raw)
@@ -184,7 +186,8 @@ def generateKeys(name, email, passphrase, choice):
     if choice == 'y':
         conf.read('mprdb.ini')
         conf.set('mprdb', 'save_passphrase', 'True')
-        conf.set('mprdb', 'passphrase', passphrase)
+        passphrase_64 = str(base64.b64encode((passphrase).encode("utf-8")))
+        conf.set('mprdb', 'passphrase', passphrase_64[2:-1])
         # KeyID is the last 16 bits of fingerprint
         conf.set('mprdb', 'serverkeyid', fingerprint[-16:])
         conf.write(open('mprdb.ini', 'w'))
@@ -226,7 +229,8 @@ def loadPassphrase():
     '''
     conf.read('mprdb.ini')
     if conf.get('mprdb', 'save_passphrase') == 'True':
-        passphrase = conf.get('mprdb', 'passphrase')
+        passphrase_64 = conf.get('mprdb', 'passphrase')
+        passphrase = base64.b64decode(passphrase_64).decode("utf-8")
         print('Loading passphrase succeed.')
     elif args.passphrase != '':
         passphrase = args.passphrase
@@ -670,7 +674,6 @@ def listServer():
 if __name__ == "__main__":
     checkArgument()
     preSetup()
-
     if args.key == True:
         keyManagement()
     if args.reg == True:
