@@ -726,19 +726,21 @@ def weightServer(server_uuid, weight):
         fp.write(json.dumps(key_list, indent=4))
     return 0
 
-def serverInfoMap(id,info : str):
+
+def serverInfoMap(id, info: str):
     '''
     By receving server id and return data which you want.
     id can be 16/32/36 bites , info is a string , it can be "public_key" "name" or "uuid".
     id --> info
     uuid>>public_key , shortid>>public_key , shortid>>name , shortid>>name , shortid>>uuid
     '''
-    if len(id) == 36 and info == 'uuid': # uuid to uuid , just return
+    if len(id) == 36 and info == 'uuid':  # uuid to uuid , just return
         return id
 
-    if len(id) == 32 and info == 'uuid': # 32uuid to 36uuid
-        id = id[:8] + '-' + id[8:12] + '-' + id[12:16] + '-' + id[16:20] + '-' + id[20:] # change 32 bits id to 36 bits
-        return id # return 36uuid
+    if len(id) == 32 and info == 'uuid':  # 32uuid to 36uuid
+        id = id[:8] + '-' + id[8:12] + '-' + id[12:16] + '-' + \
+            id[16:20] + '-' + id[20:]  # change 32 bits id to 36 bits
+        return id  # return 36uuid
 
     url = "https://test.openmprdb.org/v1/server/list"
     res = getData(url)
@@ -748,8 +750,8 @@ def serverInfoMap(id,info : str):
         print('An error occurred when getting server list.')
         print(res)
         exit()
-    
-    if len(id) == 36 and info == 'public_key': # uuid>>public_key
+
+    if len(id) == 36 and info == 'public_key':  # uuid>>public_key
         uuid_dict = {}  # dict "uuid":"public_key"
         for items in response["servers"]:
             uuid = str(items["uuid"])
@@ -757,7 +759,7 @@ def serverInfoMap(id,info : str):
             uuid_dict[uuid] = public_key
         return uuid_dict[id]
 
-    if len(id) == 16 and info == 'public_key': # shortid>>public_key
+    if len(id) == 16 and info == 'public_key':  # shortid>>public_key
         keyid_dict = {}  # dict "key_id":"public_key"
         for items in response["servers"]:
             keyid = str(items["key_id"])
@@ -765,7 +767,7 @@ def serverInfoMap(id,info : str):
             keyid_dict[keyid] = public_key
         return keyid_dict[id]
 
-    if len(id) == 36 and info == 'name': # shortid>>name
+    if len(id) == 36 and info == 'name':  # shortid>>name
         uuid_name_dict = {}  # dict "uuid":"name"
         for items in response["servers"]:
             uuid = str(items["uuid"])
@@ -773,7 +775,7 @@ def serverInfoMap(id,info : str):
             uuid_name_dict[uuid] = name
         return uuid_name_dict[id]
 
-    if len(id) == 16 and info == 'name': # shortid>>name
+    if len(id) == 16 and info == 'name':  # shortid>>name
         keyid_name_dict = {}  # dict "key_id":"name"
         for items in response["servers"]:
             keyid = str(items["key_id"])
@@ -781,7 +783,7 @@ def serverInfoMap(id,info : str):
             keyid_name_dict[keyid] = name
         return keyid_name_dict[id]
 
-    if len(id) == 16 and info == 'uuid': # shortid>>uuid
+    if len(id) == 16 and info == 'uuid':  # shortid>>uuid
         keyid_uuid_dict = {}  # dict "key_id":"uuid"
         for items in response["servers"]:
             keyid = str(items["key_id"])
@@ -814,6 +816,7 @@ def importKey(server_uuid):
     print('Result: ' + result['text'])
     return 0
 
+
 def getServerKey():
     '''
     Download server public key that you trusted from remote server.
@@ -833,10 +836,10 @@ def getServerKey():
 
     # two kinds of uuid , long:36 and short:16
     if len(serverid) == 16:
-        server_name = serverInfoMap(serverid,'name')
-        server_uuid = serverInfoMap(serverid,'uuid')
+        server_name = serverInfoMap(serverid, 'name')
+        server_uuid = serverInfoMap(serverid, 'uuid')
     if len(serverid) == 36:
-        server_name = serverInfoMap(serverid,'name')
+        server_name = serverInfoMap(serverid, 'name')
         server_uuid = serverid
 
     print("=====Confirm the Server Info=====")
@@ -844,19 +847,19 @@ def getServerKey():
     print("Server UUID:" + server_uuid)
     print("Server key_id:" + serverid)
     print("Public key block:")
-    print(serverInfoMap(server_uuid,'public_key'))
+    print(serverInfoMap(server_uuid, 'public_key'))
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
         exit()
 
     if choice == 'd' or choice == 'download':  # only download key as a file
-        downloadKey(server_uuid, serverInfoMap(server_uuid,'public_key'))
+        downloadKey(server_uuid, serverInfoMap(server_uuid, 'public_key'))
         print('Public key has saved to file.')
         exit()
 
     if choice == 'None':  # save and import
-        downloadKey(server_uuid, serverInfoMap(server_uuid,'public_key'))
+        downloadKey(server_uuid, serverInfoMap(server_uuid, 'public_key'))
         try:
             shutil.move(server_uuid, "TrustPublicKey")
         except:
@@ -867,7 +870,8 @@ def getServerKey():
 
     return 0
 
-def getDetailListFromServer(mode : str):
+
+def getDetailListFromServer(mode: str):
     '''
     List all submits from a server.
     mode can be normal or call
@@ -875,7 +879,7 @@ def getDetailListFromServer(mode : str):
     If you call this function in other function , set mode to call , is will return the submit dict.
     '''
     serverid = args.uuid
-    server_uuid = serverInfoMap(serverid,"uuid")
+    server_uuid = serverInfoMap(serverid, "uuid")
     url = "https://test.openmprdb.org/v1/submit/server/" + server_uuid
 
     res = getData(url)
@@ -885,7 +889,7 @@ def getDetailListFromServer(mode : str):
         print('An error occurred when getting data.')
         print(res)
         exit()
-    
+
     if mode == 'call':
         return response
 
@@ -898,6 +902,7 @@ def getDetailListFromServer(mode : str):
 
     print(df1)
     return 0
+
 
 def getSubmitDetail():
     '''
@@ -918,17 +923,18 @@ def getSubmitDetail():
     print('Server UUID: ' + response['server_uuid'])
     print('Content: \n' + response['content'])
 
-
-    status=response.get("status")
+    status = response.get("status")
     if status == "NG":
         print("400 Bad Request or 404 Not found")
         print("This submission may not exist or may have been deleted.")
 
     return 0
 
+
 def updateMainController():
 
     return 0
+
 
 if __name__ == "__main__":
     checkArgument()
