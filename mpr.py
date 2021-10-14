@@ -176,7 +176,7 @@ def helpInfo():
     --update
       Update ban list.
 
-        disable argument : 
+        disable argument : (optional)
         pullSubmitFromTrustedServer() >> -f1
         generateReputationBase() >> -f2
         generateBanList() >> -f3
