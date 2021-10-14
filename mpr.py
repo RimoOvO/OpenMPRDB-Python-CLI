@@ -726,58 +726,69 @@ def weightServer(server_uuid, weight):
         fp.write(json.dumps(key_list, indent=4))
     return 0
 
-
-def serverInfoMap(res):
+def serverInfoMap(id,info):
     '''
-    Create some dicts , to match data
-    "uuid":"public_key"
-    "key_id":"public_key"
-    "uuid":"name"
-    "key_id":"name"
-    "key_id":"uuid"
+    By receving server id and return data which you want.
+    id --> info
+    uuid>>public_key , shortid>>public_key , shortid>>name , shortid>>name , shortid>>uuid
     '''
-    uuid_dict = {}  # dict "uuid":"public_key"
-    for items in res["servers"]:
-        uuid = str(items["uuid"])
-        public_key = str(items["public_key"])
-        uuid_dict[uuid] = public_key
+    url = "https://test.openmprdb.org/v1/server/list"
+    res = getData(url)
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when getting server list.')
+        print(res)
+        exit()
+    
+    if len(id) == 36 and info == 'public_key': # uuid>>public_key
+        uuid_dict = {}  # dict "uuid":"public_key"
+        for items in response["servers"]:
+            uuid = str(items["uuid"])
+            public_key = str(items["public_key"])
+            uuid_dict[uuid] = public_key
+        return uuid_dict[id]
 
-    ''' # not used
-    keyid_dict = {}  # dict "key_id":"public_key"
-    for items in res["servers"]:
-        keyid = str(items["key_id"])
-        public_key = str(items["public_key"])
-        keyid_dict[keyid] = public_key
-    '''
+    if len(id) == 16 and info == 'public_key': # shortid>>public_key
+        keyid_dict = {}  # dict "key_id":"public_key"
+        for items in response["servers"]:
+            keyid = str(items["key_id"])
+            public_key = str(items["public_key"])
+            keyid_dict[keyid] = public_key
+        return keyid_dict[id]
 
-    uuid_name_dict = {}  # dict "uuid":"name"
-    for items in res["servers"]:
-        uuid = str(items["uuid"])
-        name = str(items["server_name"])
-        uuid_name_dict[uuid] = name
+    if len(id) == 36 and info == 'name': # shortid>>name
+        uuid_name_dict = {}  # dict "uuid":"name"
+        for items in response["servers"]:
+            uuid = str(items["uuid"])
+            name = str(items["server_name"])
+            uuid_name_dict[uuid] = name
+        return uuid_name_dict[id]
 
-    keyid_name_dict = {}  # dict "key_id":"name"
-    for items in res["servers"]:
-        keyid = str(items["key_id"])
-        name = str(items["server_name"])
-        keyid_name_dict[keyid] = name
+    if len(id) == 16 and info == 'name': # shortid>>name
+        keyid_name_dict = {}  # dict "key_id":"name"
+        for items in response["servers"]:
+            keyid = str(items["key_id"])
+            name = str(items["server_name"])
+            keyid_name_dict[keyid] = name
+        return keyid_name_dict[id]
 
-    keyid_uuid_dict = {}  # dict "key_id":"uuid"
-    for items in res["servers"]:
-        keyid = str(items["key_id"])
-        uuid = str(items["uuid"])
-        keyid_uuid_dict[keyid] = uuid
+    if len(id) == 16 and info == 'uuid': # shortid>>uuid
+        keyid_uuid_dict = {}  # dict "key_id":"uuid"
+        for items in response["servers"]:
+            keyid = str(items["key_id"])
+            uuid = str(items["uuid"])
+            keyid_uuid_dict[keyid] = uuid
+        return keyid_uuid_dict[id]
 
-    return uuid_dict, uuid_name_dict, keyid_name_dict, keyid_uuid_dict
 
-
-def downloadKey(server_uuid, uuid_dict):
+def downloadKey(server_uuid, public_key):
     '''
     Save server public key as a file and use server uuid as its file name.
     '''
     file_name = server_uuid
     with open(file_name, 'w') as f:
-        f.write(uuid_dict[server_uuid])
+        f.write(public_key)
     return 0
 
 
@@ -794,7 +805,6 @@ def importKey(server_uuid):
     print('StateCode: ' + result['ok'])
     print('Result: ' + result['text'])
     return 0
-
 
 def getServerKey():
     '''
@@ -813,25 +823,12 @@ def getServerKey():
         print('Missing argument --uuid or --weight.')
         exit()
 
-    url = "https://test.openmprdb.org/v1/server/list"
-    res = getData(url)
-
-    try:
-        response = res.json()
-    except:
-        print('An error occurred when getting server list.')
-        print(res)
-        exit()
-
-    uuid_dict, uuid_name_dict, keyid_name_dict, keyid_uuid_dict = serverInfoMap(
-        response)
-
     # two kinds of uuid , long:36 and short:16
     if len(serverid) == 16:
-        server_name = keyid_name_dict[serverid]
-        server_uuid = keyid_uuid_dict[serverid]
+        server_name = serverInfoMap(serverid,'name')
+        server_uuid = serverInfoMap(serverid,'uuid')
     if len(serverid) == 36:
-        server_name = uuid_name_dict[serverid]
+        server_name = serverInfoMap(serverid,'name')
         server_uuid = serverid
 
     print("=====Confirm the Server Info=====")
@@ -839,19 +836,19 @@ def getServerKey():
     print("Server UUID:" + server_uuid)
     print("Server key_id:" + serverid)
     print("Public key block:")
-    print(uuid_dict[server_uuid])
+    print(serverInfoMap(server_uuid,'public_key'))
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
         exit()
 
     if choice == 'd' or choice == 'download':  # only download key as a file
-        downloadKey(server_uuid, uuid_dict)
+        downloadKey(server_uuid, serverInfoMap(server_uuid,'public_key'))
         print('Public key has saved to file.')
         exit()
 
     if choice == 'None':  # save and import
-        downloadKey(server_uuid, uuid_dict)
+        downloadKey(server_uuid, serverInfoMap(server_uuid,'public_key'))
         try:
             shutil.move(server_uuid, "TrustPublicKey")
         except:
@@ -862,26 +859,46 @@ def getServerKey():
 
     return 0
 
+def getDetailListFromServer():
+    serverid = args.uuid
+
+    return 0
+
+def getSubmitDetail():
+
+    return 0
+
+def updateMainController():
+
+    return 0
 
 if __name__ == "__main__":
     checkArgument()
     preSetup()
     if args.key == True:
         keyManagement()
-    if args.reg == True:
+    elif args.reg == True:
         registerServer()
-    if args.new == True:
+    elif args.new == True:
         newSubmit()
-    if args.delete == True:
+    elif args.delete == True:
         deleteSubmit()
-    if args.shut == True:
+    elif args.shut == True:
         deleteServer()
-    if args.list == True:
+    elif args.list == True:
         listServer()
-    if args.getkey == True:
+    elif args.getkey == True:
         getServerKey()
-    if args.setweight == True:
+    elif args.setweight == True:
         server_uuid = args.uuid
         weight = float(args.weight)
         weightServer(server_uuid, weight)
         print('Set server seight: ' + server_uuid + ' to ' + args.weight)
+    elif args.listfrom == True:
+        getDetailListFromServer()
+    elif args.detail == True:
+        getSubmitDetail()
+    elif args.update == True:
+        updateMainController()
+    else:
+        print('The main argument is missing!')
