@@ -76,6 +76,12 @@ def preSetup():
                         help=argparse.SUPPRESS)
     parser.add_argument('-w', '--weight', default='None',
                         help=argparse.SUPPRESS)
+    parser.add_argument('-f1', '--function1', action='store_false', default=True,
+                        help=argparse.SUPPRESS) # for update>>pullSubmitFromTrustedServer() , to disable it
+    parser.add_argument('-f2', '--function2', action='store_false', default=True,
+                        help=argparse.SUPPRESS) # for update>>generateReputationBase() , to disable it
+    parser.add_argument('-f3', '--function3', action='store_false', default=True,
+                        help=argparse.SUPPRESS) # for update>>generateBanList() , to disable it
     # register main keys 3/4
     parser.add_argument('--key', action='store_true', default=False,
                         help='>>Used to generate key pair and get lists.With key "-n name -e email -i choice -p passphrase".Choice input y to save and auto fill passphrase in the future,n will not.To get a list of keys, use key "-m list"')
@@ -105,9 +111,16 @@ def preSetup():
     # folder : TrustPublicKey
     if not os.path.exists('TrustPublicKey'):
         os.mkdir('TrustPublicKey')
+    # folder : TrustPlayersList
+    if not os.path.exists('TrustPlayersList'):
+        os.mkdir('TrustPlayersList')
     # file : weight.json
     if not os.path.exists('weight.json'):
         with open('weight.json', 'w+') as f:
+            f.write('{}')
+    # file : players_map.json
+    if not os.path.exists('players_map.json'):
+        with open('players_map.json', 'w+') as f:
             f.write('{}')
 
 
@@ -153,6 +166,24 @@ def helpInfo():
     --setweight
       Set weight for a specific server : -u [Server UUID] -w [Weight]
       [Weight] : It should be in range (0,5]
+
+    --detail 
+      Get a detail of a submit , from submit uuid : -u [Ubumit UUID]
+
+    --listfrom
+      List all submits from a server : -u [Server UUID]
+
+    --update
+      Update ban list.
+
+        disable argument : 
+        pullSubmitFromTrustedServer() >> -f1
+        generateReputationBase() >> -f2
+        generateBanList() >> -f3
+
+        Example,you only want to generate a new ban list , use :
+        python mpr.py --update -f1 -f2 , to disable the first two functions
+      
     '''
     print(info)
     return 0
@@ -931,7 +962,422 @@ def getSubmitDetail():
     return 0
 
 
+def pullSubmitFromTrustedServer():
+    '''
+    Pull submits from trusted servers
+    '''
+    start = time.time()
+    count = 0
+    submit_count = 0
+    server_count = 0
+
+    file_dir = "TrustPublicKey"
+    key_list = os.listdir(file_dir)  # list
+    error_key = []
+    error_code = []
+    server_all_count = len(key_list)
+    error_submit = []
+    error_submit_server = []
+    error_submit_server_count = 0
+
+    # load the keys that prepared to pull
+    for key in key_list:
+        server_error = False
+        server_count += 1
+        submit_count = 0
+        print("=====================")
+        print("Now loading server :" + key + " --<Server:" +
+              str(server_count) + "/" + str(server_all_count) + ">")
+        url = "https://test.openmprdb.org/v1/submit/server/" + key
+        response = getData(url)
+
+        print("HTTP status code: " + str(response.status_code))
+        if response.status_code >= 400:
+            print("An error occurred. Please try again later.")
+            print("This key may be no longer available. Skip...")
+            error_key.append(key)
+            error_code.append(response.status_code)
+            continue
+
+        res = response.json()
+        submits = res["submits"]
+        submit_all_count = len(submits)
+
+        for items in submits:  # decrypt
+            submit_count += 1
+            submit_uuid = items["uuid"]
+            server_uuid = items["server_uuid"]
+            content = items["content"]
+            print("Now solving submit: " + submit_uuid + " --<Submit:" + str(submit_count) + "/" + str(
+                submit_all_count) + ">" + " --<Server:" + str(server_count) + "/" + str(server_all_count) + ">")
+            with open("temp.txt", 'w+', encoding='utf-8') as f:
+                f.write(content)
+
+            # result = subprocess.check_output("gpg --decrypt temp.txt", shell=True, stderr=subprocess.STDOUT,
+            # stdin=subprocess.PIPE)  # gpg shell's output can't be got completely
+            verify = False
+            with open('temp.txt', 'rb') as f:
+                verified = gpg.verify_file(f)
+            if not verified:
+                verify = False
+            else:
+                verify = True
+
+            if verify:
+                print("Good Signature. Saving....")
+                path_name = './TrustPlayersList/' + server_uuid
+                if not os.path.exists(path_name):
+                    os.makedirs(path_name)
+                try:
+                    os.rename('temp.txt', submit_uuid)
+                    shutil.move(submit_uuid, path_name)
+                except:
+                    print("Already Saved.Skip..")
+                    os.remove(submit_uuid)
+                count += 1
+            else:
+                print(str(submit_uuid) + " is not valid! skip...")
+                error_submit.append(submit_uuid)
+                error_submit_server.append(key)
+                server_error = True
+        if server_error:
+            error_submit_server_count += 1
+
+    end = time.time()
+    print("Pulled " + str(count) + " submit<s>.")
+    print("Total time: " + str(end - start) + " second<s>.")
+    print("=====================")
+
+    # print error servers
+    if len(error_key) >= 1:
+        print("There was a problem pulling submissions from the following " +
+              str(len(error_key)) + " server<s>")
+        i = 0
+        for items in error_key:
+            print("Server UUID: " + str(items) +
+                  " ,HTTPcode=" + str(error_code[i]))
+            i += 1
+    else:
+        print("All servers responded correctly.")
+    print("=====================")
+
+    # print error submits
+    if len(error_submit) >= 1:
+        print("There was a problem verifying the signatures of the following " + str(
+            len(error_submit)) + " submit<s>,from " + str(error_submit_server_count) + " server<s>")
+        i = 0
+        # solving the foling i-1
+        error_submit_server.append(error_submit_server[0])
+        print("\n")
+        print("  >> from server: " + error_submit_server[0])
+        for items in error_submit:
+            if error_submit_server[i] != error_submit_server[i - 1]:
+                print("  >> from server: " + error_submit_server[i])
+            print("Submit UUID: " + str(items))
+            i += 1
+    else:
+        print("All signatures have been verified well and saved.")
+
+    return 0
+
+
+def generateReputationBase():
+    '''
+    Generate local reputation base
+    '''
+    reputation = {}
+    start = time.time()
+    count = 0
+
+    # load weight file
+    with open("weight.json", 'r') as f:
+        weight = json.loads(f.read())
+
+    file_dir = "TrustPlayersList"
+    server_list = os.listdir(file_dir)  # server list
+
+    for server in server_list:
+        submit_list = os.listdir(file_dir + "/" + server)  # submit list
+
+        if weight.get(server) is None:
+            print("Server : " + server + " has no weight set.")
+            input("Press any key to exit")
+            exit()
+        else:
+            # The weight of each trusted server is different
+            pownum = float(weight.get(server))
+
+        for submit in submit_list:
+            submit_dir = file_dir + "/" + server + "/" + submit
+            with open(submit_dir, 'r', encoding='utf-8') as f:
+                content = f.read()
+            uuid_index = content.find("player_uuid:")
+            if content[uuid_index + 12] == " ":  # with space
+                player_uuid = content[uuid_index + 13:uuid_index + 49]
+            if content[uuid_index + 12] != " ":  # without space
+                player_uuid = content[uuid_index + 12:uuid_index + 48]
+            point_index = content.find("points:")
+            if content[point_index + 7] == " ":  # with space
+                i = 0
+                while True:  # get point number,accept decimals
+                    i += 1
+                    point_end_index = point_index + 7 + i
+                    if content[point_end_index] == "." or content[point_end_index] == "-":
+                        continue
+                    try:
+                        int(content[point_end_index])
+                    except:
+                        break
+                # point before being weighted
+                player_point_ori: float = float(
+                    content[point_index + 8:point_end_index])
+                # point after being weighted
+                player_point = float(
+                    content[point_index + 8:point_end_index]) * pownum
+            if content[point_index + 7] != " ":  # without space
+                i = 0
+                while True:  # get point number,accept decimals
+                    i += 1
+                    point_end_index = point_index + 6 + i
+                    # Handle decimal points and minus signs
+                    if content[point_end_index] == "." or content[point_end_index] == "-":
+                        continue
+                    try:
+                        int(content[point_end_index])
+                    except:
+                        break
+                player_point_ori = float(
+                    content[point_index + 7:point_end_index])
+                player_point = float(
+                    content[point_index + 7:point_end_index]) * pownum
+                # print(player_point)
+
+            # If the player is not in the local reputation library, create a new record.
+            # If it is, add it to the original value.
+            if reputation.get(player_uuid) is None:
+                reputation[player_uuid] = player_point
+                sump = player_point
+            else:
+                sump = reputation[player_uuid]
+                sump = sump + player_point
+                reputation[player_uuid] = sump
+            print('  >>From submit : '+submit)
+            print("Solving player: " + player_uuid)
+            print("With points: " + str(player_point_ori) + ", Magnification: " + str(pownum) + "x, Total points: " + str(
+                sump))
+            print("\n")
+            count += 1
+
+    with open("reputation.json", "w+") as fp:
+        fp.write(json.dumps(reputation, indent=4))
+
+    end = time.time()
+    print("=====================")
+    print("Solved " + str(count) + " submit<s>.")
+    print("Total time: " + str(end - start) + " second<s>.")
+    print("=====================")
+    return 0
+
+
+def backup(banlistIsNew : bool):
+    '''
+    Backup old ban list to folder ./backup
+    If banlist is new created , it will not be backup
+    '''
+    if banlistIsNew == True:return 0
+
+    timepoint = str(time.strftime("%Y%m%d-%H%M%S", time.localtime()))
+    if not os.path.exists("backup"):
+        os.makedirs("backup")
+    filename = "banned-players-backup-" + timepoint + ".json"
+    os.rename('banned-players.json', filename)
+    shutil.copy(filename, "backup/")
+    os.rename(filename, 'banned-players.json')
+    return 0
+
+
+def playersMapGet(player_uuid):  # uuid to name
+    '''
+    Get player name from local players_map.json , to increase of efficiency
+    '''
+    players_map = {}
+    with open('players_map.json', 'r') as f:
+        players_map = json.loads(f.read())
+    player_name = players_map.get(player_uuid, '-1')
+    return player_name
+
+
+def playersMapSave(player_uuid, player_name):  # save uuid and name to file
+    '''
+    Save the player that isnt in the players_map.json , to increase of efficiency
+    '''
+    players_map = {}
+    with open('players_map.json', 'r') as f:
+        players_map = json.loads(f.read())
+    players_map[player_uuid] = player_name
+    with open('players_map.json', 'w+') as d:
+        d.write(json.dumps(players_map, indent=4, ensure_ascii=False))
+    return 0
+
+
+def newList(banlist):
+    # create new ban list
+    conf.read('mprdb.ini')
+    file_server_banlist = conf.get('mprdb', 'banlist_path')
+
+    with open("banned-players.json", "w+", encoding='utf-8') as fp:
+        fp.write(json.dumps(banlist, indent=4, ensure_ascii=False))
+    try:
+        shutil.copy('banned-players.json', file_server_banlist)
+        print('Copying file to server folder...')
+    except:
+        print('Unable to copy file to server folder.')
+    return 0
+
+
+def searchOnline(player_uuid, i, changed, banlist ,banlistIsNew):  # return (name or code,i)
+    '''
+    player uuid to player name , from mojang
+    if ban list changed and mojang site crashed , return code -2 , and save ban list
+    if ban list not changed and mojang site crashed , return code -3
+    if player not found , return code -1
+    if player found , return player name
+    '''
+    url = "https://sessionserver.mojang.com/session/minecraft/profile/" + \
+        player_uuid  # get player name
+    try:
+        res = getData(url)
+    except:
+        if changed:
+            backup(banlistIsNew)
+            newList(banlist)
+            return "-2", i
+        else:
+            return "-3", i
+
+    if res.text == "":
+        i += 1
+        return '-1', i
+    else:
+        result = res.json()
+        player_name = result["name"]
+    return player_name, i
+
+
+def generateBanList():
+    '''
+    Generate a new ban list , the old will be backup in ./backup
+    If the server path is correct , the banned-players.json will be copied here
+    then edit it and send back.
+    If the server path is not correct ,a new banned-players.json will be generated.
+    '''
+    conf.read('mprdb.ini')
+    min_point_toban = float(conf.get('mprdb', 'min_point_toban'))
+    file_reputation = "reputation.json"
+    file_server_banlist = conf.get('mprdb', 'banlist_path')
+    source = conf.get('mprdb', 'ban_source')
+    expires = conf.get('mprdb', 'ban_expires')
+    reason = conf.get('mprdb', 'ban_reason')
+    changed = False
+    banlistIsNew = False
+
+    try:
+        shutil.copy(file_server_banlist, os.getcwd())
+        print('Server ban list found,using list: '+file_server_banlist)
+    except:
+        print('Server ban list not found! Generating...')
+        banlistIsNew = True # if it is new , it will not be backup , because it's empty
+        with open('banned-players.json', 'w+') as f:
+            f.write('[]')
+
+    # load old ban list and local reputation
+    with open(file_reputation, "r", encoding='utf-8') as f:
+        reputation = json.loads(f.read())
+    with open('banned-players.json', "r", encoding='utf-8') as d:
+        banlist = json.loads(d.read())
+
+    already_exist_player = []  # Prevent duplication
+    for items in banlist:  # type(items)=dict
+        already_exist_player.append(items["uuid"])
+
+    banamount = 0  # For progress bar
+    for player_uuid in reputation:
+        if reputation[player_uuid] <= min_point_toban and player_uuid not in already_exist_player:
+            banamount += 1
+
+    i = 0
+    # if a player in local reputation with a low point , and he isn't in the old ban list
+    # he will be add to the new ban list
+    for player_uuid in reputation:
+        if reputation[player_uuid] <= min_point_toban and player_uuid not in already_exist_player:
+            if playersMapGet(player_uuid) != '-1':
+                player_name = playersMapGet(player_uuid)
+                i += 1
+            else:
+                player_name, i = searchOnline(player_uuid, i, changed, banlist ,banlistIsNew)
+                if player_name == '-3':
+                    print(
+                        "An error occurred while searching the player.Try again later.")
+                    print('Nothing changed.')
+                    exit()
+                if player_name == '-2':
+                    print(
+                        "An error occurred while searching the player.Try again later.")
+                    print('Solved '+str(i)+' item<s>.')
+                    exit()
+                if player_name == '-1':
+                    print("Player: " + player_uuid + " not found! < " +
+                          str(i)+" / "+str(banamount)+" >")
+                    continue
+                playersMapSave(player_uuid, player_name)
+                i += 1
+
+            print("Now adding player: " + player_name + " ,UUID: " +
+                  player_uuid + " to ban list. < "+str(i)+" / "+str(banamount)+" >")
+            created = str(time.strftime("%Y-%m-%d %H:%M:%S",
+                          time.localtime())) + " +0800"
+            info = {'uuid': player_uuid, 'name': player_name, 'created': created,
+                    'source': source, 'expires': expires, 'reason': reason}
+            # print(info)
+            banlist.append(info)  # new ban list
+            # print(banlist)
+            changed = True
+    if changed:
+        print('Solved '+str(i)+' item<s>.')
+        backup(banlistIsNew)
+        newList(banlist)
+    else:
+        print('Nothing changed.')
+
+    return 0
+
+
 def updateMainController():
+    '''
+    Update main controller.
+    if you want to disable one or more following function(s) , use -f1 -f2 -f3 to disable them
+
+    disable argument : 
+    pullSubmitFromTrustedServer() >> -f1
+    generateReputationBase() >> -f2
+    generateBanList() >> -f3
+
+    Example,you only want to generate a new ban list , use python mpr.py --update -f1 -f2 , to disable the first two functions
+    '''
+    f1 = f2 = f3 = True
+
+    f1 = args.function1 
+    f2 = args.function2
+    f3 = args.function3
+
+
+    if f1:
+        pullSubmitFromTrustedServer()
+    if f2:
+        generateReputationBase()
+    if f3:
+        generateBanList()
+
 
     return 0
 
