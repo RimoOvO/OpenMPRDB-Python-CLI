@@ -726,12 +726,20 @@ def weightServer(server_uuid, weight):
         fp.write(json.dumps(key_list, indent=4))
     return 0
 
-def serverInfoMap(id,info):
+def serverInfoMap(id,info : str):
     '''
     By receving server id and return data which you want.
+    id can be 16/32/36 bites , info is a string , it can be "public_key" "name" or "uuid".
     id --> info
     uuid>>public_key , shortid>>public_key , shortid>>name , shortid>>name , shortid>>uuid
     '''
+    if len(id) == 36 and info == 'uuid': # uuid to uuid , just return
+        return id
+
+    if len(id) == 32 and info == 'uuid': # 32uuid to 36uuid
+        id = id[:8] + '-' + id[8:12] + '-' + id[12:16] + '-' + id[16:20] + '-' + id[20:] # change 32 bits id to 36 bits
+        return id # return 36uuid
+
     url = "https://test.openmprdb.org/v1/server/list"
     res = getData(url)
     try:
@@ -859,12 +867,62 @@ def getServerKey():
 
     return 0
 
-def getDetailListFromServer():
+def getDetailListFromServer(mode : str):
+    '''
+    List all submits from a server.
+    mode can be normal or call
+    If you call this function in main function , set mode to normal , it will display a list. 
+    If you call this function in other function , set mode to call , is will return the submit dict.
+    '''
     serverid = args.uuid
+    server_uuid = serverInfoMap(serverid,"uuid")
+    url = "https://test.openmprdb.org/v1/submit/server/" + server_uuid
 
+    res = getData(url)
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when getting data.')
+        print(res)
+        exit()
+    
+    if mode == 'call':
+        return response
+
+    try:
+        df1 = pd.DataFrame(response["submits"])
+    except:
+        print("This server may not exist or may have been deleted.")
+        print(res)
+        exit()
+
+    print(df1)
     return 0
 
 def getSubmitDetail():
+    '''
+    Get a submit detail by a submit uuid
+    '''
+    submit_uuid = args.uuid
+    url = "https://test.openmprdb.org/v1/submit/uuid/" + submit_uuid
+
+    res = getData(url)
+    try:
+        response = res.json()
+    except:
+        print('An error occurred when getting data.')
+        print(res)
+        exit()
+
+    print('Submit UUID: ' + response['uuid'])
+    print('Server UUID: ' + response['server_uuid'])
+    print('Content: \n' + response['content'])
+
+
+    status=response.get("status")
+    if status == "NG":
+        print("400 Bad Request or 404 Not found")
+        print("This submission may not exist or may have been deleted.")
 
     return 0
 
@@ -895,7 +953,7 @@ if __name__ == "__main__":
         weightServer(server_uuid, weight)
         print('Set server seight: ' + server_uuid + ' to ' + args.weight)
     elif args.listfrom == True:
-        getDetailListFromServer()
+        getDetailListFromServer('normal')
     elif args.detail == True:
         getSubmitDetail()
     elif args.update == True:
