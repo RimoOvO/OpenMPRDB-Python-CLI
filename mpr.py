@@ -107,15 +107,14 @@ def preSetup():
         os.mkdir('TrustPublicKey')
     # file : weight.json
     if not os.path.exists('weight.json'):
-    	with open('weight.json','w+') as f:
-        	f.write('{}')
+        with open('weight.json', 'w+') as f:
+            f.write('{}')
 
 
 def helpInfo():
     info = '''
-    This is the help info for OpenMPRDB-Python-CLI. 
-      Tip : If you saved passphrase , -p is no longer required.
-    
+    This is the help page for OpenMPRDB-Python-CLI. 
+
     Example:
       Example 1 : python mpr.py --key -n Steve -e steve@email.com -c y -p 12345678 -r keyForServer
       Example 2 : python mpr.py --key -m list
@@ -125,6 +124,7 @@ def helpInfo():
       Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
       List all keys : -m list
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
+                   If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
         [Remarks] : Key notes, it's optional.
@@ -145,9 +145,14 @@ def helpInfo():
     --list
       List servers that registered from remote server : [--max [Max amount to show]] 
       
-    --getKey
+    --getkey
       Download server public key that you trusted from remote server. : -u [Server UUID] -w [Weight] -c [Choice]
       [Choice] : If you want to import the key : leave empty ; if you want to just download : use -c download or -c d
+      [Weight] : It should be in range (0,5].
+
+    --setweight
+      Set weight for a specific server : -u [Server UUID] -w [Weight]
+      [Weight] : It should be in range (0,5]
     '''
     print(info)
     return 0
@@ -162,7 +167,7 @@ def keyManagement():
     arg_passphrase = args.passphrase
     arg_choice = str(args.choice)
     arg_mode = args.mode
-    arg_comment = args.reason 
+    arg_comment = args.reason
 
     if arg_mode == 'list':
         listKeys()
@@ -171,7 +176,8 @@ def keyManagement():
         print('Missing argument --name --email --passphrase or --choice')
         print('Check it in help page.')
     else:
-        generateKeys(arg_name, arg_email, arg_passphrase, arg_choice, arg_comment)
+        generateKeys(arg_name, arg_email, arg_passphrase,
+                     arg_choice, arg_comment)
 
     return 0
 
@@ -182,7 +188,7 @@ def generateKeys(name, email, passphrase, choice, comment):
     '''
     # generate keys
     input_data = gpg.gen_key_input(name_email=email, passphrase=passphrase, name_real=name,
-                                   key_length=2048,name_comment=comment)
+                                   key_length=2048, name_comment=comment)
     print(input_data)
     # get fingerprint
     fingerprint_raw = gpg.gen_key(input_data)
@@ -284,6 +290,9 @@ def generateRegisterJson():
 
 @retry(stop_max_attempt_number=3)
 def putData(url, data, headers):
+    '''
+    Request method: PUT
+    '''
     response = requests.put(url, data=data, headers=headers, timeout=5)
     return response
 
@@ -341,6 +350,9 @@ def registerServer():
 
 @retry(stop_max_attempt_number=3)
 def getData(url):
+    '''
+    Request method: GET
+    '''
     response = requests.get(url)
     return response
 
@@ -584,6 +596,9 @@ def deleteSubmit():
 
 @retry(stop_max_attempt_number=3)
 def deleteData(url, data, headers):
+    '''
+    Request method: DELETE
+    '''
     response = requests.delete(url, data=data, headers=headers, timeout=5)
     return response
 
@@ -693,18 +708,24 @@ def listServer():
     print(df1)
     return 0
 
-def weightServer(server_uuid,weight):
+
+def weightServer(server_uuid, weight):
     '''
     Set weight for a specific server.
     '''
-    with open("weight.json",'r') as f:
-        key_list=json.loads(f.read())
+    if weight <= 0 or weight > 5:
+        print('Invalid weight value . It should be in range (0,5] ')
+        exit()
 
-    key_list[server_uuid]=weight
-    
+    with open("weight.json", 'r') as f:
+        key_list = json.loads(f.read())
+
+    key_list[server_uuid] = weight
+
     with open("weight.json", "w") as fp:
-        fp.write(json.dumps(key_list,indent=4))
+        fp.write(json.dumps(key_list, indent=4))
     return 0
+
 
 def serverInfoMap(res):
     '''
@@ -721,7 +742,7 @@ def serverInfoMap(res):
         public_key = str(items["public_key"])
         uuid_dict[uuid] = public_key
 
-    '''
+    ''' # not used
     keyid_dict = {}  # dict "key_id":"public_key"
     for items in res["servers"]:
         keyid = str(items["key_id"])
@@ -747,9 +768,10 @@ def serverInfoMap(res):
         uuid = str(items["uuid"])
         keyid_uuid_dict[keyid] = uuid
 
-    return uuid_dict,uuid_name_dict,keyid_name_dict,keyid_uuid_dict
+    return uuid_dict, uuid_name_dict, keyid_name_dict, keyid_uuid_dict
 
-def downloadKey(server_uuid,uuid_dict):
+
+def downloadKey(server_uuid, uuid_dict):
     '''
     Save server public key as a file and use server uuid as its file name.
     '''
@@ -757,6 +779,7 @@ def downloadKey(server_uuid,uuid_dict):
     with open(file_name, 'w') as f:
         f.write(uuid_dict[server_uuid])
     return 0
+
 
 def importKey(server_uuid):
     '''
@@ -772,25 +795,22 @@ def importKey(server_uuid):
     print('Result: ' + result['text'])
     return 0
 
+
 def getServerKey():
     '''
     Download server public key that you trusted from remote server.
     mode : save or only download
     '''
-    serverid = args.uuid # can be long or short
+    serverid = args.uuid  # can be long or short
     weight = float(args.weight)
     choice = args.choice
-    
-    if choice == 'download' or choice == 'd': # check in download mode
+
+    if choice == 'download' or choice == 'd':  # check in download mode
         if args.uuid == 'None':
             print('Missing argument --uuid.')
             exit()
-    elif args.uuid == 'None' or args.weight == 'None' : # check in normal mode
+    elif args.uuid == 'None' or args.weight == 'None':  # check in normal mode
         print('Missing argument --uuid or --weight.')
-        exit()
-    
-    if weight <= 0 or weight > 5:
-        print('Invalid weight value . It should be in range (0,5] ')
         exit()
 
     url = "https://test.openmprdb.org/v1/server/list"
@@ -803,8 +823,9 @@ def getServerKey():
         print(res)
         exit()
 
-    uuid_dict,uuid_name_dict,keyid_name_dict,keyid_uuid_dict = serverInfoMap(response)
-    
+    uuid_dict, uuid_name_dict, keyid_name_dict, keyid_uuid_dict = serverInfoMap(
+        response)
+
     # two kinds of uuid , long:36 and short:16
     if len(serverid) == 16:
         server_name = keyid_name_dict[serverid]
@@ -812,7 +833,7 @@ def getServerKey():
     if len(serverid) == 36:
         server_name = uuid_name_dict[serverid]
         server_uuid = serverid
-    
+
     print("=====Confirm the Server Info=====")
     print("Server Name:" + server_name)
     print("Server UUID:" + server_uuid)
@@ -824,22 +845,23 @@ def getServerKey():
     except:
         exit()
 
-    if choice == 'd' or choice == 'download': # only download key as a file
-        downloadKey(server_uuid,uuid_dict)
+    if choice == 'd' or choice == 'download':  # only download key as a file
+        downloadKey(server_uuid, uuid_dict)
         print('Public key has saved to file.')
         exit()
 
-    if choice == 'None': # save and import
-        downloadKey(server_uuid,uuid_dict)
+    if choice == 'None':  # save and import
+        downloadKey(server_uuid, uuid_dict)
         try:
-            shutil.move(server_uuid,"TrustPublicKey")
+            shutil.move(server_uuid, "TrustPublicKey")
         except:
             print('Already saved.')
             os.remove(server_uuid)
         importKey(server_uuid)
-        weightServer(server_uuid,weight)
-    
+        weightServer(server_uuid, weight)
+
     return 0
+
 
 if __name__ == "__main__":
     checkArgument()
@@ -858,3 +880,8 @@ if __name__ == "__main__":
         listServer()
     if args.getkey == True:
         getServerKey()
+    if args.setweight == True:
+        server_uuid = args.uuid
+        weight = float(args.weight)
+        weightServer(server_uuid, weight)
+        print('Set server seight: ' + server_uuid + ' to ' + args.weight)
