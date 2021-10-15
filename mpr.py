@@ -40,10 +40,10 @@ def preSetup():
     systemName = platform.system()
     if systemName == 'Windows':
         gpg = gnupg.GPG(gnupghome='./gnupg', gpgbinary="./wingpg/gpg.exe")
-        print('Working in Windows.')
+        # print('Working in Windows.')
     elif systemName == 'Linux':
         gpg = gnupg.GPG(gnupghome='./gnupg')
-        print('Working in Linux.')
+        # print('Working in Linux.')
     else:
         gpg = gnupg.GPG(gnupghome='./gnupg', gpgbinary="./wingpg/gpg.exe")
         print('Working in ' + systemName)
@@ -961,6 +961,15 @@ def getSubmitDetail():
 
     return 0
 
+def deleteRevokedSubmit(local_submit,remote_submit,server_uuid):
+    '''
+    Delete the local submits that have been revoked in remote server.
+    '''
+    for items in local_submit:
+        if items not in remote_submit:
+            os.remove('TrustPlayersList/'+server_uuid+'/'+items)
+            print('Revoked submit: '+items)
+    return 0
 
 def pullSubmitFromTrustedServer():
     '''
@@ -985,6 +994,7 @@ def pullSubmitFromTrustedServer():
         server_error = False
         server_count += 1
         submit_count = 0
+        remote_submit = []
         print("=====================")
         print("Now loading server :" + key + " --<Server:" +
               str(server_count) + "/" + str(server_all_count) + ">")
@@ -1002,10 +1012,17 @@ def pullSubmitFromTrustedServer():
         res = response.json()
         submits = res["submits"]
         submit_all_count = len(submits)
+        local_submit = os.listdir('TrustPlayersList/' + key)
 
         for items in submits:  # decrypt
             submit_count += 1
             submit_uuid = items["uuid"]
+
+            remote_submit.append(submit_uuid)
+            if submit_uuid in local_submit:                
+                continue
+
+
             server_uuid = items["server_uuid"]
             content = items["content"]
             print("Now solving submit: " + submit_uuid + " --<Submit:" + str(submit_count) + "/" + str(
@@ -1042,6 +1059,7 @@ def pullSubmitFromTrustedServer():
                 server_error = True
         if server_error:
             error_submit_server_count += 1
+        deleteRevokedSubmit(local_submit,remote_submit,key)
 
     end = time.time()
     print("Pulled " + str(count) + " submit<s>.")
@@ -1358,11 +1376,11 @@ def updateMainController():
     if you want to disable one or more following function(s) , use -f1 -f2 -f3 to disable them
 
     disable argument : 
-    pullSubmitFromTrustedServer() >> -f1
-    generateReputationBase() >> -f2
-    generateBanList() >> -f3
+    pull Submit From Trusted Server >> -f1
+    generate Reputation Base >> -f2
+    generate Ban List >> -f3
 
-    Example,you only want to generate a new ban list , use python mpr.py --update -f1 -f2 , to disable the first two functions
+    Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
     '''
     f1 = f2 = f3 = True
 
