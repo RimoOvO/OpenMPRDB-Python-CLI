@@ -2,6 +2,7 @@
 /gnupg/
 /TrustPublicKey/
 /backup/
+/build/
 *.asc
 *.json
 *.swp

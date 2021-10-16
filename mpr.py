@@ -77,11 +77,11 @@ def preSetup():
     parser.add_argument('-w', '--weight', default='None',
                         help=argparse.SUPPRESS)
     parser.add_argument('-f1', '--function1', action='store_false', default=True,
-                        help=argparse.SUPPRESS) # for update>>pullSubmitFromTrustedServer() , to disable it
+                        help=argparse.SUPPRESS)  # for update>>pullSubmitFromTrustedServer() , to disable it
     parser.add_argument('-f2', '--function2', action='store_false', default=True,
-                        help=argparse.SUPPRESS) # for update>>generateReputationBase() , to disable it
+                        help=argparse.SUPPRESS)  # for update>>generateReputationBase() , to disable it
     parser.add_argument('-f3', '--function3', action='store_false', default=True,
-                        help=argparse.SUPPRESS) # for update>>generateBanList() , to disable it
+                        help=argparse.SUPPRESS)  # for update>>generateBanList() , to disable it
     # register main keys 3/4
     parser.add_argument('--key', action='store_true', default=False,
                         help='>>Used to generate key pair and get lists.With key "-n name -e email -i choice -p passphrase".Choice input y to save and auto fill passphrase in the future,n will not.To get a list of keys, use key "-m list"')
@@ -961,7 +961,8 @@ def getSubmitDetail():
 
     return 0
 
-def deleteRevokedSubmit(local_submit,remote_submit,server_uuid):
+
+def deleteRevokedSubmit(local_submit, remote_submit, server_uuid):
     '''
     Delete the local submits that have been revoked in remote server.
     '''
@@ -970,6 +971,7 @@ def deleteRevokedSubmit(local_submit,remote_submit,server_uuid):
             os.remove('TrustPlayersList/'+server_uuid+'/'+items)
             print('Revoked submit: '+items)
     return 0
+
 
 def pullSubmitFromTrustedServer():
     '''
@@ -1019,9 +1021,8 @@ def pullSubmitFromTrustedServer():
             submit_uuid = items["uuid"]
 
             remote_submit.append(submit_uuid)
-            if submit_uuid in local_submit:                
+            if submit_uuid in local_submit:
                 continue
-
 
             server_uuid = items["server_uuid"]
             content = items["content"]
@@ -1059,7 +1060,7 @@ def pullSubmitFromTrustedServer():
                 server_error = True
         if server_error:
             error_submit_server_count += 1
-        deleteRevokedSubmit(local_submit,remote_submit,key)
+        deleteRevokedSubmit(local_submit, remote_submit, key)
 
     end = time.time()
     print("Pulled " + str(count) + " submit<s>.")
@@ -1197,12 +1198,13 @@ def generateReputationBase():
     return 0
 
 
-def backup(banlistIsNew : bool):
+def backup(banlistIsNew: bool):
     '''
     Backup old ban list to folder ./backup
     If banlist is new created , it will not be backup
     '''
-    if banlistIsNew == True:return 0
+    if banlistIsNew == True:
+        return 0
 
     timepoint = str(time.strftime("%Y%m%d-%H%M%S", time.localtime()))
     if not os.path.exists("backup"):
@@ -1253,7 +1255,7 @@ def newList(banlist):
     return 0
 
 
-def searchOnline(player_uuid, i, changed, banlist ,banlistIsNew):  # return (name or code,i)
+def searchOnline(player_uuid, i, changed, banlist, banlistIsNew):  # return (name or code,i)
     '''
     player uuid to player name , from mojang
     if ban list changed and mojang site crashed , return code -2 , and save ban list
@@ -1304,7 +1306,7 @@ def generateBanList():
         print('Server ban list found,using list: '+file_server_banlist)
     except:
         print('Server ban list not found! Generating...')
-        banlistIsNew = True # if it is new , it will not be backup , because it's empty
+        banlistIsNew = True  # if it is new , it will not be backup , because it's empty
         with open('banned-players.json', 'w+') as f:
             f.write('[]')
 
@@ -1332,7 +1334,8 @@ def generateBanList():
                 player_name = playersMapGet(player_uuid)
                 i += 1
             else:
-                player_name, i = searchOnline(player_uuid, i, changed, banlist ,banlistIsNew)
+                player_name, i = searchOnline(
+                    player_uuid, i, changed, banlist, banlistIsNew)
                 if player_name == '-3':
                     print(
                         "An error occurred while searching the player.Try again later.")
@@ -1384,10 +1387,9 @@ def updateMainController():
     '''
     f1 = f2 = f3 = True
 
-    f1 = args.function1 
+    f1 = args.function1
     f2 = args.function2
     f3 = args.function3
-
 
     if f1:
         pullSubmitFromTrustedServer()
@@ -1395,7 +1397,6 @@ def updateMainController():
         generateReputationBase()
     if f3:
         generateBanList()
-
 
     return 0
 
