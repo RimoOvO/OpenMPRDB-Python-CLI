@@ -384,7 +384,7 @@ def getData(url):
     '''
     Request method: GET
     '''
-    response = requests.get(url)
+    response = requests.get(url, timeout=5)
     return response
 
 
@@ -1359,9 +1359,7 @@ def generateBanList():
                           time.localtime())) + " +0800"
             info = {'uuid': player_uuid, 'name': player_name, 'created': created,
                     'source': source, 'expires': expires, 'reason': reason}
-            # print(info)
             banlist.append(info)  # new ban list
-            # print(banlist)
             changed = True
     if changed:
         print('Solved '+str(i)+' item<s>.')
@@ -1386,7 +1384,6 @@ def updateMainController():
     Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
     '''
     f1 = f2 = f3 = True
-
     f1 = args.function1
     f2 = args.function2
     f3 = args.function3
@@ -1397,7 +1394,6 @@ def updateMainController():
         generateReputationBase()
     if f3:
         generateBanList()
-
     return 0
 
 
