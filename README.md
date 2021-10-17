@@ -1,4 +1,21 @@
 # OpenMPRDB-Python-CLI
+
+### Environment : Python 3
+
+Using network proxy may cause some errors.
+
+### Python components
+
+1. requests
+
+2. retrying
+
+3. pandas
+
+4. python-gnupg
+
+install then manually or use pip install -r requirements.txt
+
 ### This is the help page for OpenMPRDB-Python-CLI. 
 
     Example:
