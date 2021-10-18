@@ -136,11 +136,13 @@ def helpInfo():
     --key 
       Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
       List all keys : -m list
+      Delete a key pair : -m delete -u [Key Fingerprint]
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
                    If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
         [Remarks] : Key notes, it's optional.
+        [Key Fingerprint] : You will get it in key list.
 
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
@@ -188,6 +190,18 @@ def helpInfo():
     print(info)
     return 0
 
+def deleteKeys():
+    '''
+    Delete a key with its fingerprint
+    '''
+    fingerprint = args.uuid
+    passphrase = loadPassphrase()
+
+    print('Delete private key result:',end = ' ')
+    print(gpg.delete_keys(fingerprint, True, passphrase=passphrase))
+    print('Delete public key result:',end = ' ')
+    print(gpg.delete_keys(fingerprint))
+    return 0
 
 def keyManagement():
     '''
@@ -203,6 +217,11 @@ def keyManagement():
     if arg_mode == 'list':
         listKeys()
         return 0
+    
+    if arg_mode == 'delete':
+        deleteKeys()
+        return 0
+
     if arg_name == 'None' or arg_email == 'None' or arg_passphrase == '' or arg_choice == 'None':
         print('Missing argument --name --email --passphrase or --choice')
         print('Check it in help page.')
