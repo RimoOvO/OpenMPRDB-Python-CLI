@@ -208,11 +208,23 @@ def deleteKeys():
     return 0
 
 
-def importKeys():
+def importKeyFile():
+    '''
+    Import key with its file name.
+    '''
     file_name = args.name
-    key_data = open(file_name).read()
+    try:
+        key_data = open(file_name).read()
+    except:
+        print('Invalid key file name.')
+        return 0
+
     import_result = gpg.import_keys(key_data)
-    print(import_result.results)
+    result = import_result.results
+    result = result[0]
+    print('Fingerprint: ', result['fingerprint'])
+    print('StateCode: ', result['ok'])
+    print('Result: ', result['text'])
     return 0
 
 
@@ -249,6 +261,9 @@ def exportPrivateKey(keyid, passphrase):
 
 
 def exportKeysController():
+    '''
+    Whether to export private key while exporting public key
+    '''
     export_private_key = args.choice
     keyid = args.uuid
 
@@ -281,7 +296,7 @@ def keyManagement():
         return 0
 
     if arg_mode == 'import':
-        importKeys()
+        importKeyFile()
         return 0
 
     if arg_mode == 'list':
