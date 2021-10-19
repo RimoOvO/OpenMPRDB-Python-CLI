@@ -141,7 +141,8 @@ def helpInfo():
       Delete a key pair : -m delete -u [Key Fingerprint]
       Import a key : -m import -n [File Name]
       Export a key : -m export -u [Key ID] -c [Export private key]
-      Sign a message : [-n [Input File Name]] [-n2 [Output File Name]] [-u [KeyID]] [-p [Passphrase]]
+      Sign a file : -m sign [-n [Input File Name]] [-n2 [Output File Name]] [-u [KeyID]] [-p [Passphrase]]
+      Vertigy a file : -m vertify -n [File Name]
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
                    If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
@@ -305,10 +306,37 @@ def signFile(arg, ServerKeyID):
     else:
         passphrase = arg['passphrase']
 
-    with open(in_file_name, 'rb') as f:
-        gpg.sign_file(f, keyid=keyid, output=out_file_name,
-                      passphrase=passphrase)
+    try:
+        with open(in_file_name, 'rb') as f:
+            gpg.sign_file(f, keyid=keyid, output=out_file_name,
+                          passphrase=passphrase)
+    except:
+        print('Invalid file name or keyid!')
+        return 0
     return 0
+
+
+def verifyFile():
+    '''
+    Vertify a file with all keys imported
+    '''
+    file_name = args.name
+    if file_name == 'None':
+        print('Invalid file name!')
+        return 0
+
+    try:
+        with open(file_name, 'rb') as f:
+            verified = gpg.verify_file(f)
+    except:
+        print('Invalid file name!')
+        return 0
+
+    if not verified:
+        print("Signature could not be verified!")
+    else:
+        print("Good signature.")
+    return
 
 
 def keyManagement():
@@ -331,6 +359,10 @@ def keyManagement():
     arg_name2 = args.name2
     arg_uuid = args.uuid
     arg_passphrase = args.passphrase
+
+    if arg_mode == 'vertify':
+        verifyFile()
+        return 0
 
     if arg_mode == 'sign':
         conf.read('mprdb.ini')
