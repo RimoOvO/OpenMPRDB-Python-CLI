@@ -76,6 +76,8 @@ def preSetup():
                         help=argparse.SUPPRESS)
     parser.add_argument('-w', '--weight', default='None',
                         help=argparse.SUPPRESS)
+    parser.add_argument('-n2', '--name2', default='None',
+                        help=argparse.SUPPRESS)
     parser.add_argument('-f1', '--function1', action='store_false', default=True,
                         help=argparse.SUPPRESS)  # for update>>pullSubmitFromTrustedServer() , to disable it
     parser.add_argument('-f2', '--function2', action='store_false', default=True,
@@ -139,6 +141,7 @@ def helpInfo():
       Delete a key pair : -m delete -u [Key Fingerprint]
       Import a key : -m import -n [File Name]
       Export a key : -m export -u [Key ID] -c [Export private key]
+      Sign a message : [-n [Input File Name]] [-n2 [Output File Name]] [-u [KeyID]] [-p [Passphrase]]
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
                    If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
@@ -146,6 +149,7 @@ def helpInfo():
         [Remarks] : Key notes, it's optional.
         [Key Fingerprint] : You will get it in key list.
         [Export private key] : Fill true or just leave empty , whether to export its private key.
+        Sign a message : All args are optional , the default value : -n message.txt -n2 message.txt.asc -u YourServerKeyID -p SavedPassphrase
 
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
@@ -277,12 +281,46 @@ def exportKeysController():
     return 0
 
 
+def signFile(arg, ServerKeyID):
+    '''
+    Sign a message with the key selected
+    '''
+    if arg['keyid'] == 'None':  # default value : keyid
+        keyid = ServerKeyID
+    else:
+        keyid = arg['keyid']
+
+    if arg['input_file_name'] == 'None':  # default value : input_file_name
+        in_file_name = 'message.txt'
+    else:
+        in_file_name = arg['input_file_name']
+
+    if arg['output_file_name'] == 'None':  # default value : outpput_file_name
+        out_file_name = 'message.txt.asc'
+    else:
+        out_file_name = arg['output_file_name']
+
+    if arg['passphrase'] == '':  # default value : passphrase
+        passphrase = loadPassphrase()
+    else:
+        passphrase = arg['passphrase']
+
+    with open(in_file_name, 'rb') as f:
+        gpg.sign_file(f, keyid=keyid, output=out_file_name,
+                      passphrase=passphrase)
+    return 0
+
+
 def keyManagement():
     '''
     Solving argument --key and run specific function.
-    list : list all keys
-    delete : delete a key with its fingerprint
-    *empty : generate a key pair
+    list : List all keys
+    delete : Delete a key with its fingerprint
+    export : Export keys with its keyid and passphrase
+    import : Import key with its file name
+    sign : Sign a message with the key selected
+    vertify : Vertify a message with all keys imported
+    *empty : Generate a key pair
     '''
     arg_name = args.name
     arg_email = args.email
@@ -290,6 +328,18 @@ def keyManagement():
     arg_choice = str(args.choice)
     arg_mode = args.mode
     arg_comment = args.reason
+    arg_name2 = args.name2
+    arg_uuid = args.uuid
+    arg_passphrase = args.passphrase
+
+    if arg_mode == 'sign':
+        conf.read('mprdb.ini')
+        ServerKeyId = conf.get('mprdb', 'ServerKeyId')
+        arg = {'keyid': arg_uuid, 'input_file_name': arg_name,
+               'output_file_name': arg_name2, 'passphrase': arg_passphrase}
+        signFile(arg, ServerKeyId)
+
+        return 0
 
     if arg_mode == 'export':
         exportKeysController()
