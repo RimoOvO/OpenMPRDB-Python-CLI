@@ -26,11 +26,19 @@ install then manually or use pip install -r requirements.txt
     --key 
       Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
       List all keys : -m list
+      Delete a key pair : -m delete -u [Key Fingerprint]
+      Import a key : -m import -n [File Name]
+      Export a key : -m export -u [Key ID] -c [Export private key]
+      Sign a file : -m sign [-n [Input File Name]] [-n2 [Output File Name]] [-u [KeyID]] [-p [Passphrase]]
+      Vertigy a file : -m vertify -n [File Name]
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
                    If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
         [Remarks] : Key notes, it's optional.
+        [Key Fingerprint] : You will get it in key list.
+        [Export private key] : Fill true or just leave empty , whether to export its private key.
+        Sign a message : All args are optional , the default value : -n message.txt -n2 message.txt.asc -u YourServerKeyID -p SavedPassphrase
 
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
