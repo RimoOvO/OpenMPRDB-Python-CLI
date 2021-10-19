@@ -137,12 +137,15 @@ def helpInfo():
       Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
       List all keys : -m list
       Delete a key pair : -m delete -u [Key Fingerprint]
+      Import a key : -m import -n [File Name]
+      Export a key : -m export -u [Key ID] -c [Export private key]
         [Choice] : Whether to save passphrase and auto fill or not , input y or n.
                    If you saved passphrase , -p is no longer required in other functions.
         [Passphrase] : It had better be a long and hard to guess secret ,
                        When generating or deleting a key pair , a passphrase is always required.
         [Remarks] : Key notes, it's optional.
         [Key Fingerprint] : You will get it in key list.
+        [Export private key] : Fill true or just leave empty , whether to export its private key.
 
     --reg
       Register to remote server : -n [Your Server Name] [-p [Passphrase]]
@@ -190,6 +193,7 @@ def helpInfo():
     print(info)
     return 0
 
+
 def deleteKeys():
     '''
     Delete a key with its fingerprint
@@ -197,15 +201,73 @@ def deleteKeys():
     fingerprint = args.uuid
     passphrase = loadPassphrase()
 
-    print('Delete private key result:',end = ' ')
+    print('Delete private key result:', end=' ')
     print(gpg.delete_keys(fingerprint, True, passphrase=passphrase))
-    print('Delete public key result:',end = ' ')
+    print('Delete public key result:', end=' ')
     print(gpg.delete_keys(fingerprint))
     return 0
+
+
+def importKeys():
+    file_name = args.name
+    key_data = open(file_name).read()
+    import_result = gpg.import_keys(key_data)
+    print(import_result.results)
+    return 0
+
+
+def exportPublicKey(keyid):
+    '''
+    Export public key with its keyid
+    '''
+    try:
+        ascii_armored_public_keys = gpg.export_keys(keyid)
+    except:
+        print("Invalid key id!")
+        return 0
+
+    with open('public_key_' + keyid + '.asc', 'w') as f:
+        f.write(ascii_armored_public_keys)
+    print('Public key file name: ' + 'public_key_' + keyid + '.asc')
+    return 0
+
+
+def exportPrivateKey(keyid, passphrase):
+    '''
+    Export private key with its keyid and passphrase
+    '''
+    try:
+        ascii_armored_private_keys = gpg.export_keys(
+            keyid, True, passphrase=passphrase)
+    except:
+        print("Invalid key id or passphrase!")
+        return 0
+    with open('private_key_' + keyid + '.asc', 'w') as f:
+        f.write(ascii_armored_private_keys)
+    print('Private key file name: ' + 'private_key_' + keyid + '.asc')
+    return 0
+
+
+def exportKeysController():
+    export_private_key = args.choice
+    keyid = args.uuid
+
+    if export_private_key == 'true':
+        passphrase = loadPassphrase()
+        exportPrivateKey(keyid, passphrase)
+        exportPublicKey(keyid)
+    else:
+        exportPublicKey(keyid)
+    print('Done!')
+    return 0
+
 
 def keyManagement():
     '''
     Solving argument --key and run specific function.
+    list : list all keys
+    delete : delete a key with its fingerprint
+    *empty : generate a key pair
     '''
     arg_name = args.name
     arg_email = args.email
@@ -214,10 +276,18 @@ def keyManagement():
     arg_mode = args.mode
     arg_comment = args.reason
 
+    if arg_mode == 'export':
+        exportKeysController()
+        return 0
+
+    if arg_mode == 'import':
+        importKeys()
+        return 0
+
     if arg_mode == 'list':
         listKeys()
         return 0
-    
+
     if arg_mode == 'delete':
         deleteKeys()
         return 0
