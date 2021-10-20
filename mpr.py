@@ -1283,7 +1283,7 @@ def pullSubmitFromTrustedServer():
     else:
         print("All signatures have been verified well and saved.")
 
-    return 0
+    return str(end - start)  # return used time
 
 
 def generateReputationBase():
@@ -1381,13 +1381,14 @@ def generateReputationBase():
     print("Solved " + str(count) + " submit<s>.")
     print("Total time: " + str(end - start) + " second<s>.")
     print("=====================")
-    return 0
+    return str(end - start)  # return used time
 
 
 def backup(banlistIsNew: bool):
     '''
     Backup old ban list to folder ./backup
     If banlist is new created , it will not be backup
+    If old ban list is empty , it will not be backup neither
     '''
     if banlistIsNew == True:
         return 0
@@ -1395,6 +1396,13 @@ def backup(banlistIsNew: bool):
     timepoint = str(time.strftime("%Y%m%d-%H%M%S", time.localtime()))
     if not os.path.exists("backup"):
         os.makedirs("backup")
+    
+    with open('banned-players.json', 'r') as f:
+        banned_players_list = json.loads(f.read())
+    if len(banned_players_list) == 0:
+        print('The old ban list is empty , it will not be backup')
+        return 0
+
     filename = "banned-players-backup-" + timepoint + ".json"
     os.rename('banned-players.json', filename)
     shutil.copy(filename, "backup/")
@@ -1486,10 +1494,11 @@ def generateBanList():
     reason = conf.get('mprdb', 'ban_reason')
     changed = False
     banlistIsNew = False
+    start = time.time()
 
     try:
         shutil.copy(file_server_banlist, os.getcwd())
-        print('Server ban list found,using list: '+file_server_banlist)
+        print('Server ban list found, using list: '+file_server_banlist)
     except:
         print('Server ban list not found! Generating...')
         banlistIsNew = True  # if it is new , it will not be backup , because it's empty
@@ -1554,7 +1563,9 @@ def generateBanList():
     else:
         print('Nothing changed.')
 
-    return 0
+    end = time.time()
+
+    return str(end - start)  # return used time
 
 
 def updateMainController():
@@ -1569,17 +1580,28 @@ def updateMainController():
 
     Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
     '''
+    t1 = t2 = t3 = '0.00'
     f1 = f2 = f3 = True
     f1 = args.function1
     f2 = args.function2
     f3 = args.function3
 
     if f1:
-        pullSubmitFromTrustedServer()
+        t1 = pullSubmitFromTrustedServer()
     if f2:
-        generateReputationBase()
+        t2 = generateReputationBase()
     if f3:
-        generateBanList()
+        t3 = generateBanList()
+
+    # time used
+    t1 = float(t1[:4])
+    t2 = float(t2[:4])
+    t3 = float(t3[:4])
+    time = t1+t2+t3
+    time_str = str(time)
+
+    print('Time: ' + str(t1) + ' / ' + str(t2) +
+          ' / ' + str(t3) + ' = ' + time_str[:4] + ' s')
     return 0
 
 
