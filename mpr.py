@@ -12,6 +12,7 @@ import shutil
 import gnupg
 import pandas as pd
 import requests
+import random
 from retrying import retry
 
 
@@ -1392,7 +1393,7 @@ def backup(banlistIsNew: bool):
     with open('banned-players.json', 'r') as f:
         banned_players_list = json.loads(f.read())
     if len(banned_players_list) == 0:
-        print('The old ban list is empty , it will not be backup')
+        print('\nThe old ban list is empty , it will not be backup')
         return 0
 
     filename = "banned-players-backup-" + timepoint + ".json"
@@ -1435,9 +1436,9 @@ def newList(banlist):
         fp.write(json.dumps(banlist, indent=4, ensure_ascii=False))
     try:
         shutil.copy('banned-players.json', file_server_banlist)
-        print('Copying new ban list to server folder...')
+        print('\nCopying new ban list to server folder...')
     except:
-        print('Unable to copy file to server folder.')
+        print('\nUnable to copy file to server folder.')
     return 0
 
 
@@ -1487,7 +1488,10 @@ def generateBanList():
     changed = False
     banlistIsNew = False
     player_not_found = []
-    start = time.time()
+
+    with open('players_map.json', 'r') as f:
+        o = json.loads(f.read())
+        ovo(o)
 
     try:
         shutil.copy(file_server_banlist, os.getcwd())
@@ -1562,6 +1566,19 @@ def generateBanList():
 
     return 0
 
+def ovo(dist):
+    '''
+    ovo/
+    '''
+    if random.randint(0,100) <= 50 and len(dist) == 0:
+        print('嗨，别来无恙啊！')
+        time.sleep(3)
+        print('这可能需要几分钟')
+        time.sleep(2)
+        print('请勿关闭电脑')
+        time.sleep(1)
+    return 0
+
 
 def updateMainController():
     '''
@@ -1583,16 +1600,21 @@ def updateMainController():
 
     if f1:
         print('Pulling submits...')
-        t1 = pullSubmitFromTrustedServer()
+        pullSubmitFromTrustedServer()
     if f2:
         print('\nGenerating reputation base...')
-        t2 = generateReputationBase()
+        generateReputationBase()
     if f3:
         print('\nGenerating ban list...')
-        t3 = generateBanList()
+        print('The first run may take several minutes.')
+        generateBanList()
     return 0
 
-def progressRun(i, start_time, scale):
+def progressRun(i, start_time=time.time(), scale=50):
+    '''
+    Display progress bar
+    scale : Length of progress bar , default to 50
+    '''
     a = "*" * i
     b = "." * (scale - i)
     c = (i / scale) * 100
@@ -1600,9 +1622,12 @@ def progressRun(i, start_time, scale):
     print("\r{:^3.0f}%[{}->{}]{:.2f}s".format(c, a, b, dur), end="")
 
 
-def progressController(precent, start_time=time.time(), scale=50):
-    i = int(precent / 2)  # scale as 50
-    progressRun(i, start_time, scale)
+def progressController(precent):
+    '''
+    Receive precent (like 89.7) ,deliver it to progressRun()
+    '''
+    i = int(precent / 2)  # scale as 50 ,so convert the upper limit to 50% ,or the progress bar will be too long
+    progressRun(i)
 
 if __name__ == "__main__":
     checkArgument()
