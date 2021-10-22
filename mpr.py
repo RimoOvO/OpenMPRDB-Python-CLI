@@ -1183,15 +1183,15 @@ def pullSubmitFromTrustedServer():
         server_count += 1
         submit_count = 0
         remote_submit = []
-        print("=====================")
-        print("Now loading server :" + key + " --<Server:" +
+        # print("=====================")
+        print("\nNow loading server :" + key + " --<Server:" +
               str(server_count) + "/" + str(server_all_count) + ">")
         url = "https://test.openmprdb.org/v1/submit/server/" + key
         response = getData(url)
 
-        print("HTTP status code: " + str(response.status_code))
         if response.status_code >= 400:
-            print("An error occurred. Please try again later.")
+            print("HTTP status code: " + str(response.status_code))
+            print("\nAn error occurred. Please try again later.")
             print("This key may be no longer available. Skip...")
             error_key.append(key)
             error_code.append(response.status_code)
@@ -1212,8 +1212,8 @@ def pullSubmitFromTrustedServer():
 
             server_uuid = items["server_uuid"]
             content = items["content"]
-            print("Now solving submit: " + submit_uuid + " --<Submit:" + str(submit_count) + "/" + str(
-                submit_all_count) + ">" + " --<Server:" + str(server_count) + "/" + str(server_all_count) + ">")
+            # print("Now solving submit: " + submit_uuid + " --<Submit:" + str(submit_count) + "/" + str(submit_all_count) + ">" + " --<Server:" + str(server_count) + "/" + str(server_all_count) + ">" + '\n')
+            progressController(submit_count/submit_all_count * 100)
             with open("temp.txt", 'w+', encoding='utf-8') as f:
                 f.write(content)
 
@@ -1228,7 +1228,7 @@ def pullSubmitFromTrustedServer():
                 verify = True
 
             if verify:
-                print("Good Signature. Saving....")
+                # print("Good Signature. Saving....")
                 path_name = './TrustPlayersList/' + server_uuid
                 if not os.path.exists(path_name):
                     os.makedirs(path_name)
@@ -1236,11 +1236,11 @@ def pullSubmitFromTrustedServer():
                     os.rename('temp.txt', submit_uuid)
                     shutil.move(submit_uuid, path_name)
                 except:
-                    print("Already Saved.Skip..")
+                    # print("Already Saved.Skip..")
                     os.remove(submit_uuid)
                 count += 1
             else:
-                print(str(submit_uuid) + " is not valid! skip...")
+                # print(str(submit_uuid) + " is not valid! skip...")
                 error_submit.append(submit_uuid)
                 error_submit_server.append(key)
                 server_error = True
@@ -1248,42 +1248,36 @@ def pullSubmitFromTrustedServer():
             error_submit_server_count += 1
         deleteRevokedSubmit(local_submit, remote_submit, key)
 
-    end = time.time()
-    print("Pulled " + str(count) + " submit<s>.")
-    print("Total time: " + str(end - start) + " second<s>.")
-    print("=====================")
-
     # print error servers
     if len(error_key) >= 1:
-        print("There was a problem pulling submissions from the following " +
+        print("\n\nThere was a problem pulling submissions from the following " +
               str(len(error_key)) + " server<s>")
         i = 0
         for items in error_key:
             print("Server UUID: " + str(items) +
                   " ,HTTPcode=" + str(error_code[i]))
             i += 1
-    else:
-        print("All servers responded correctly.")
-    print("=====================")
+    # else:
+        # print("All servers responded correctly.")
+    # print("=====================")
 
     # print error submits
     if len(error_submit) >= 1:
-        print("There was a problem verifying the signatures of the following " + str(
+        print("\n\nThere was a problem verifying the signatures of the following " + str(
             len(error_submit)) + " submit<s>,from " + str(error_submit_server_count) + " server<s>")
         i = 0
         # solving the foling i-1
         error_submit_server.append(error_submit_server[0])
-        print("\n")
         print("  >> from server: " + error_submit_server[0])
         for items in error_submit:
             if error_submit_server[i] != error_submit_server[i - 1]:
                 print("  >> from server: " + error_submit_server[i])
             print("Submit UUID: " + str(items))
             i += 1
-    else:
-        print("All signatures have been verified well and saved.")
+    # else:
+        # print("All signatures have been verified well and saved.")
 
-    return str(end - start)  # return used time
+    return 0
 
 
 def generateReputationBase():
@@ -1311,6 +1305,7 @@ def generateReputationBase():
         else:
             # The weight of each trusted server is different
             pownum = float(weight.get(server))
+            submit_amount = len(submit_list)
 
         for submit in submit_list:
             submit_dir = file_dir + "/" + server + "/" + submit
@@ -1366,22 +1361,19 @@ def generateReputationBase():
                 sump = reputation[player_uuid]
                 sump = sump + player_point
                 reputation[player_uuid] = sump
-            print('  >>From submit : '+submit)
-            print("Solving player: " + player_uuid)
-            print("With points: " + str(player_point_ori) + ", Magnification: " + str(pownum) + "x, Total points: " + str(
-                sump))
-            print("\n")
+            # print('  >>From submit : '+submit)
+            # print("Solving player: " + player_uuid)
+            # print("With points: " + str(player_point_ori) + ", Magnification: " + str(pownum) + "x, Total points: " + str(sump))
+            # print("\n")
             count += 1
+            progressController(count/submit_amount * 100)
 
     with open("reputation.json", "w+") as fp:
         fp.write(json.dumps(reputation, indent=4))
 
     end = time.time()
-    print("=====================")
-    print("Solved " + str(count) + " submit<s>.")
-    print("Total time: " + str(end - start) + " second<s>.")
-    print("=====================")
-    return str(end - start)  # return used time
+    print("\nSolved " + str(count) + " submit<s> into local reputation base.")
+    return 0
 
 
 def backup(banlistIsNew: bool):
@@ -1443,7 +1435,7 @@ def newList(banlist):
         fp.write(json.dumps(banlist, indent=4, ensure_ascii=False))
     try:
         shutil.copy('banned-players.json', file_server_banlist)
-        print('Copying file to server folder...')
+        print('Copying new ban list to server folder...')
     except:
         print('Unable to copy file to server folder.')
     return 0
@@ -1494,6 +1486,7 @@ def generateBanList():
     reason = conf.get('mprdb', 'ban_reason')
     changed = False
     banlistIsNew = False
+    player_not_found = []
     start = time.time()
 
     try:
@@ -1532,40 +1525,42 @@ def generateBanList():
                 player_name, i = searchOnline(
                     player_uuid, i, changed, banlist, banlistIsNew)
                 if player_name == '-3':
-                    print(
-                        "An error occurred while searching the player.Try again later.")
+                    print("\nAn error occurred while searching the player.Try again later.")
                     print('Nothing changed.')
                     exit()
                 if player_name == '-2':
-                    print(
-                        "An error occurred while searching the player.Try again later.")
+                    print("\nAn error occurred while searching the player.Try again later.")
                     print('Solved '+str(i)+' item<s>.')
                     exit()
                 if player_name == '-1':
-                    print("Player: " + player_uuid + " not found! < " +
-                          str(i)+" / "+str(banamount)+" >")
+                    # print("\nPlayer: " + player_uuid + " not found! < " +str(i)+" / "+str(banamount)+" >")
+                    player_not_found.append(player_uuid)
                     continue
                 playersMapSave(player_uuid, player_name)
                 i += 1
 
-            print("Now adding player: " + player_name + " ,UUID: " +
-                  player_uuid + " to ban list. < "+str(i)+" / "+str(banamount)+" >")
+            # print("Now adding player: " + player_name + " ,UUID: " +player_uuid + " to ban list. < "+str(i)+" / "+str(banamount)+" >")
+            progressController(i/banamount * 100)
             created = str(time.strftime("%Y-%m-%d %H:%M:%S",
                           time.localtime())) + " +0800"
             info = {'uuid': player_uuid, 'name': player_name, 'created': created,
                     'source': source, 'expires': expires, 'reason': reason}
             banlist.append(info)  # new ban list
             changed = True
+    
+    if len(player_not_found) > 0:
+        print('\nThe players following were not found.')
+        for items in player_not_found:
+            print('  ',items)
+
     if changed:
-        print('Solved '+str(i)+' item<s>.')
+        print('\nSolved '+str(i)+' item<s>.')
         backup(banlistIsNew)
         newList(banlist)
     else:
-        print('Nothing changed.')
+        print('\nNothing changed.')
 
-    end = time.time()
-
-    return str(end - start)  # return used time
+    return 0
 
 
 def updateMainController():
@@ -1587,23 +1582,27 @@ def updateMainController():
     f3 = args.function3
 
     if f1:
+        print('Pulling submits...')
         t1 = pullSubmitFromTrustedServer()
     if f2:
+        print('\nGenerating reputation base...')
         t2 = generateReputationBase()
     if f3:
+        print('\nGenerating ban list...')
         t3 = generateBanList()
-
-    # time used
-    t1 = float(t1[:4])
-    t2 = float(t2[:4])
-    t3 = float(t3[:4])
-    time = t1+t2+t3
-    time_str = str(time)
-
-    print('Time: ' + str(t1) + ' / ' + str(t2) +
-          ' / ' + str(t3) + ' = ' + time_str[:4] + ' s')
     return 0
 
+def progressRun(i, start_time, scale):
+    a = "*" * i
+    b = "." * (scale - i)
+    c = (i / scale) * 100
+    dur = time.time() - start_time
+    print("\r{:^3.0f}%[{}->{}]{:.2f}s".format(c, a, b, dur), end="")
+
+
+def progressController(precent, start_time=time.time(), scale=50):
+    i = int(precent / 2)  # scale as 50
+    progressRun(i, start_time, scale)
 
 if __name__ == "__main__":
     checkArgument()
