@@ -1570,7 +1570,7 @@ def ovo(dist):
     '''
     ovo/
     '''
-    if random.randint(0,100) <= 50 and len(dist) == 0:
+    if len(dist) == 0:
         print('嗨，别来无恙啊！')
         time.sleep(3)
         print('这可能需要几分钟')
