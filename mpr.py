@@ -506,7 +506,7 @@ def generateRegisterJson():
     return data
 
 
-@retry(stop_max_attempt_number=3)
+@retry(stop_max_attempt_number=5)
 def putData(url, data, headers):
     '''
     Request method: PUT
@@ -566,7 +566,7 @@ def registerServer():
     return 0
 
 
-@retry(stop_max_attempt_number=3)
+@retry(stop_max_attempt_number=5)
 def getData(url):
     '''
     Request method: GET
@@ -812,7 +812,7 @@ def deleteSubmit():
     return 0
 
 
-@retry(stop_max_attempt_number=3)
+@retry(stop_max_attempt_number=5)
 def deleteData(url, data, headers):
     '''
     Request method: DELETE
@@ -1553,7 +1553,7 @@ def generateBanList():
             changed = True
     
     if len(player_not_found) > 0:
-        print('\nThe players following were not found.')
+        print('\nThe players following not found.')
         for items in player_not_found:
             print('  ',items)
 
