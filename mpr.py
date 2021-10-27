@@ -424,11 +424,11 @@ def pushLocalBanList():
         progressController(precent)
 
     if len(error_uuid) > 0:
-        print('The following players were not able to push.')
+        print('\nThe following players were not able to push.')
         print('Please try again later.')
         for items in error:
             print(items)
-    print('Done!')
+    print('\nDone!')
 
     return 0
 
