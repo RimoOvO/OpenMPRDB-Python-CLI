@@ -2,6 +2,7 @@
 import argparse
 import configparser
 import json
+from logging import PercentStyle, error
 import os
 import sys
 import time
@@ -85,6 +86,8 @@ def preSetup():
                         help=argparse.SUPPRESS)  # for update>>generateReputationBase() , to disable it
     parser.add_argument('-f3', '--function3', action='store_false', default=True,
                         help=argparse.SUPPRESS)  # for update>>generateBanList() , to disable it
+    parser.add_argument('-f4', '--function4', action='store_false', default=True,
+                        help=argparse.SUPPRESS)  # for update>>pushLocalBanList() , to disable it
     # register main keys 3/4
     parser.add_argument('--key', action='store_true', default=False,
                         help='>>Used to generate key pair and get lists.With key "-n name -e email -i choice -p passphrase".Choice input y to save and auto fill passphrase in the future,n will not.To get a list of keys, use key "-m list"')
@@ -98,6 +101,8 @@ def preSetup():
                         help='>>Used to delete yourself from the remote server.With key "-r reason",and optional key "-p passphrase"')
     parser.add_argument('--list', action='store_true', default=False,
                         help='>>Used to get all registered servers.With an optional key "--max number",it means how many servers to list.')
+    parser.add_argument('--push', action='store_true', default=False,
+                        help='>>Used to push local ban list to remote server')
     parser.add_argument('--detail', action='store_true', default=False,
                         help='>>Used to get a detail of a submission.With key "-u submit_uuid"')
     parser.add_argument('--listfrom', action='store_true', default=False,
@@ -233,6 +238,189 @@ def importKeyFile():
     print('Result: ', result['text'])
     return 0
 
+def tryJsonValid(path):
+    '''
+    If a json file is valid, return True; if invalid, return False
+    '''
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            temp = json.loads(f.read())
+    except:
+        return False
+
+    return True
+
+def autoPush(server_uuid,player_uuid,player_name,points,comment,passphrase):
+    '''
+    Direct push submit without confirming.
+    Push succeed: return 0
+    Push failed: return player_uuid
+    '''
+    timestamp = str(int(time.time()))
+
+    # write message
+    with open("message.txt", 'r+', encoding='utf-8') as f:
+        f.truncate(0)
+        f.write("uuid: " + server_uuid + '\n')
+        f.write("timestamp: " + timestamp + '\n')
+        f.write("player_uuid: " + player_uuid + '\n')
+        f.write("points: " + str(points) + '\n')
+        f.write("comment: " + comment)
+
+    conf.read('mprdb.ini')
+    keyid = conf.get('mprdb', 'ServerKeyId')
+
+    conf.read('mprdb.ini')
+    server_uuid = conf.get('mprdb', 'serveruuid')
+    server_name = conf.get('mprdb', 'servername')
+
+    # sign message
+    with open('message.txt', 'rb') as f:
+        gpg.sign_file(f, keyid=keyid, output='message.txt.asc',
+                      passphrase=passphrase)
+
+    url = "https://test.openmprdb.org/v1/submit/new"
+    headers = {"Content-Type": "text/plain"}
+    with open("message.txt.asc", "r", encoding='utf-8') as f:
+        data = f.read()
+        data = data.encode('utf-8')
+
+    res = putData(url, data, headers)
+    try:
+        response = res.json()
+    except:
+        # print('An error occurred when putting data.')
+        # print(res)
+        # exit()
+        return player_uuid
+
+    if not os.path.exists('submit.json'):
+        with open('submit.json', 'w+') as f:
+            f.write('{}')
+    commit = {}
+
+    status = response.get("status")
+    if status == "OK":
+        submit_uuid = response.get("uuid")
+        # print("Submitted successfully! The UUID submitted this time is: "+submit_uuid)
+        eventtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+        with open('submit.json', 'r', encoding='utf-8') as f:
+            commit = json.loads(f.read())
+        info = {'Name': player_name, 'PlayerUUID': player_uuid, 'Points': points, 'Timestamp': timestamp, 'Time': eventtime,
+                'Comment': comment, 'SubmitUUID': submit_uuid, 'ServerUUID': server_uuid, 'ServerName': server_name}
+        commit[submit_uuid] = info
+
+        with open('submit.json', 'w+', encoding='utf-8') as fd:
+            fd.write(json.dumps(commit, indent=4, ensure_ascii=False))
+        return 0
+
+    if status == "NG":
+        # print("400 Bad Request or 401 Unauthorized")
+        # print('Status : '+response.get("status"))
+        # print('Reason : '+response.get("reason"))
+        return player_uuid
+
+    return 0
+
+def pushLocalBanList():
+    '''
+    Auto push local ban list to remote server.
+    '''
+    conf.read('mprdb.ini')
+    args_path = args.name # get file path from args
+    ini_path = conf.get('mprdb', 'banlist_path')
+    error_uuid = []
+    count = 0
+    pushed_nothing = False
+
+    # get ban list path
+    # get it from input args first , then the mprdb.ini
+    if tryJsonValid(args_path):
+        banlist_path = args_path
+    elif tryJsonValid(ini_path):
+        banlist_path = ini_path
+    else:
+        print('Local ban list is invalid!')
+        return 0
+
+    # get submits that you pushed
+    pushed_submits = [] # saved all pushed player uuid that remote server saved
+    server_uuid = conf.get('mprdb', 'serveruuid')
+    response = getDetailListFromServer('call',server_uuid)
+    try:
+        pushed_submits_list = response['submits']
+    except:
+        pushed_submits_list = []
+        pushed_nothing = True
+
+    for submit in pushed_submits_list:
+
+        if pushed_nothing == True:
+            break
+
+        content = submit['content']
+        uuid_index = content.find("player_uuid:")
+        if content[uuid_index + 12] == " ":  # with space
+            player_uuid = content[uuid_index + 13:uuid_index + 49]
+        if content[uuid_index + 12] != " ":  # without space
+         player_uuid = content[uuid_index + 12:uuid_index + 48]
+    
+        pushed_submits.append(player_uuid)
+
+
+    # read the local ban list
+    # the submit that get from other servers will be skip. with tag:[MPRDB]
+    local_ban_list = [] # saved all submit uuid that local saved now
+    with open(banlist_path, 'r', encoding='utf-8') as f:
+        ban_list = json.loads(f.read()) 
+    for submit in ban_list:
+        reason = submit['reason']
+        if reason.find("[MPRDB]") >= 0:
+            continue
+        else:
+            local_ban_list.append(submit['uuid'])
+
+    # compair the two list
+    # if local submit not saved in remote server, save to list: wait_to_push
+    wait_to_push = []
+    for uuid in local_ban_list:
+        if uuid not in pushed_submits:
+            wait_to_push.append(uuid)
+            
+    print('Waitting to push:',len(wait_to_push),'item(s)')
+    if len(wait_to_push) == 0:
+        print('Nothing new to push.')
+        return 0
+
+    passphrase = loadPassphrase()
+
+    for submit in ban_list:
+        if submit['uuid'] in wait_to_push: # scan the local ban list, if it is in the wait_to_push, load the submit info
+            comment = submit['reason']
+            player_name = submit['name']
+            player_uuid = submit['uuid']
+            points = '-1'
+
+            # print(server_uuid,player_uuid,player_name,points,comment,passphrase)
+            result = autoPush(server_uuid,player_uuid,player_name,points,comment,passphrase)
+
+            if result != 0:
+                error_uuid.append(player_uuid)
+            count += 1
+
+        precent = count / len(wait_to_push) * 100
+        # print(precent)
+        progressController(precent)
+
+    if len(error_uuid) > 0:
+        print('The following players were not able to push.')
+        print('Please try again later.')
+        for items in error:
+            print(items)
+    print('Done!')
+
+    return 0
 
 def exportPublicKey(keyid):
     '''
@@ -474,7 +662,7 @@ def loadPassphrase():
     if conf.get('mprdb', 'save_passphrase') == 'True':
         passphrase_64 = conf.get('mprdb', 'passphrase')
         passphrase = base64.b64decode(passphrase_64).decode("utf-8")
-        print('Loading passphrase succeed.')
+        # print('Loading passphrase succeed.')
     elif args.passphrase != '':
         passphrase = args.passphrase
     else:
@@ -521,6 +709,9 @@ def registerServer():
     '''
     # load server name and passphrase
     server_name = args.name
+    if server_name == 'None':
+        print('Invalid server name.')
+        return 0
     passphrase = loadPassphrase()
     # write message info : server_name
     with open("message.txt", 'r+', encoding='utf-8') as f:
@@ -1089,15 +1280,19 @@ def getServerKey():
     return 0
 
 
-def getDetailListFromServer(mode: str):
+def getDetailListFromServer(mode: str ,serverid = 'None'):
     '''
     List all submits from a server.
     mode can be normal or call
     If you call this function in main function , set mode to normal , it will display a list. 
-    If you call this function in other function , set mode to call , is will return the submit dict.
+    If you call this function in other function , set mode to call , put a uuid, is will return the submit dict.
     '''
-    serverid = args.uuid
-    server_uuid = serverInfoMap(serverid, "uuid")
+    if serverid == 'None': # if it did not receive serverid , it will get it from the args input
+        serverid = args.uuid
+        server_uuid = serverInfoMap(serverid, "uuid")
+    else:
+        server_uuid = serverid
+
     url = "https://test.openmprdb.org/v1/submit/server/" + server_uuid
 
     res = getData(url)
@@ -1485,6 +1680,7 @@ def generateBanList():
     source = conf.get('mprdb', 'ban_source')
     expires = conf.get('mprdb', 'ban_expires')
     reason = conf.get('mprdb', 'ban_reason')
+    reason = '[MPRDB] ' + reason # Mark submits downloaded by other servers, to prevent from repeating deduction
     changed = False
     banlistIsNew = False
     player_not_found = []
@@ -1592,22 +1788,26 @@ def updateMainController():
 
     Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
     '''
-    t1 = t2 = t3 = '0.00'
-    f1 = f2 = f3 = True
+
+    f1 = f2 = f3 = f4= True
     f1 = args.function1
     f2 = args.function2
     f3 = args.function3
+    f4 = args.function4
 
     if f1:
-        print('Pulling submits...')
+        print('(1/4) Pulling submits...')
         pullSubmitFromTrustedServer()
     if f2:
-        print('\nGenerating reputation base...')
+        print('\n(2/4) Generating reputation base...')
         generateReputationBase()
     if f3:
-        print('\nGenerating ban list...')
+        print('\n(3/4) Generating ban list...')
         print('The first run may take several minutes.')
         generateBanList()
+    if f4:
+        print('\n(4/4) Pushing ban list...')
+        pushLocalBanList()
     return 0
 
 def progressRun(i, start_time=time.time(), scale=50):
@@ -1657,5 +1857,9 @@ if __name__ == "__main__":
         getSubmitDetail()
     elif args.update == True:
         updateMainController()
+    elif args.push == True:
+        pushLocalBanList()
+        # x = autoPush('c24347ae-58dd-44e5-b2d9-69943adb1c0f','2e2cbdb5-83b3-4cc0-aa00-e5e81586cbb9',"Awdx",'-1','xccc')  
+        # print(x)
     else:
         print('The main argument is missing!')
