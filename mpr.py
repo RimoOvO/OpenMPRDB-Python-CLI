@@ -2,7 +2,6 @@
 import argparse
 import configparser
 import json
-from logging import PercentStyle, error
 import os
 import sys
 import time
@@ -424,7 +423,7 @@ def pushLocalBanList():
     if len(error_uuid) > 0:
         print('\nThe following players were not able to push.')
         print('Please try again later.')
-        for items in error:
+        for items in error_uuid:
             print(items)
     print('\nDone!')
 
