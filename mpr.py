@@ -196,13 +196,14 @@ def helpInfo():
       Update local and remote ban list.
 
         disable argument : (optional)
-        pullSubmitFromTrustedServer() >> -f1
-        generateReputationBase() >> -f2
-        generateBanList() >> -f3
-        pullLocalBanList() >> -f4
+        pull Submit From Trusted Server >> -f1
+        generate Reputation Base >> -f2
+        generate Ban List >> -f3
+        push local ban list >> -f4
+        auto undo revoked submit >> -f5
 
-        Example,you only want to generate a new ban list , use :
-        python mpr.py --update -f1 -f2 -f4, to disable the other functions
+    Example ,you only want to generate a new ban list ,use 
+    python mpr.py --update -f1 -f2 -f4 -f5 , to disable the other functions
       
     '''
     print(info)
@@ -1964,8 +1965,10 @@ def updateMainController():
     pull Submit From Trusted Server >> -f1
     generate Reputation Base >> -f2
     generate Ban List >> -f3
+    push local ban list >> -f4
+    auto undo revoked submit >> -f5
 
-    Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
+    Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 -f4 -f5 , to disable the other functions
     '''
 
     f1 = f2 = f3 = f4 = f5 = True
@@ -1989,7 +1992,7 @@ def updateMainController():
         print('\n(4/5) Pushing ban list...')
         pushLocalBanList()
     if f5:
-        print('\n(5/5) Undoing submits...')
+        print('\n(5/5) Undoing revoked submits...')
         autoUndoSubmit()
     return 0
 

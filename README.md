@@ -79,10 +79,11 @@ install then manually or use pip install -r requirements.txt
       Update local and remote ban list.
 
         disable argument : (optional)
-        pullSubmitFromTrustedServer() >> -f1
-        generateReputationBase() >> -f2
-        generateBanList() >> -f3
-        pullLocalBanList() >> -f4
+        pull Submit From Trusted Server >> -f1
+        generate Reputation Base >> -f2
+        generate Ban List >> -f3
+        push local ban list >> -f4
+        auto undo revoked submit >> -f5
 
-        Example,you only want to generate a new ban list , use :
-        python mpr.py --update -f1 -f2 -f4, to disable the other functions
+    Example ,you only want to generate a new ban list ,  use 
+    python mpr.py --update -f1 -f2 -f4 -f5 , to disable the other functions
