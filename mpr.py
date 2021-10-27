@@ -112,6 +112,7 @@ def preSetup():
                         help='>>Used to download public key from remote server.With key "-u ServerUUID -w Weight -c Choice",choice input 1 will save and import the key,choose 3 will only save the key as a file and save to the MPRDB folder.')
     parser.add_argument('--setweight', action='store_true', default=False,
                         help='>>Used to set or change weight for a specific server.With key "-u ServerUUID -w Weight"')
+    parser.add_argument('--undo', action='store_true', default=False,help='>>Undo revoked submits')
     # load args 4/4
     global args
     args = parser.parse_args()
@@ -2034,6 +2035,8 @@ if __name__ == "__main__":
         listServer()
     elif args.getkey == True:
         getServerKey()
+    elif args.undo == True:
+        autoUndoSubmit()
     elif args.setweight == True:
         server_uuid = args.uuid
         weight = float(args.weight)
