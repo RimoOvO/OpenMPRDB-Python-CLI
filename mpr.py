@@ -6,14 +6,12 @@ from logging import PercentStyle, error
 import os
 import sys
 import time
-import traceback
 import platform
 import base64
 import shutil
 import gnupg
 import pandas as pd
 import requests
-import random
 from retrying import retry
 
 
@@ -139,7 +137,7 @@ def helpInfo():
     Example:
       Example 1 : python mpr.py --key -n Steve -e steve@email.com -c y -p 12345678 -r keyForServer
       Example 2 : python mpr.py --key -m list
-      Example 3 : python mpr.py --new -n Alex -r Stealing -s -0.8 -p 12345678
+      Example 3 : python mpr.py --new -n Alex -r "Banned for Stealing" -s -0.8
 
     --key 
       Generate a key pair : -n [Your Name] -e [Your Email] -c [Choice] -p [Passphrase] [-r [Remarks]]
