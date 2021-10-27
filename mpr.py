@@ -426,7 +426,7 @@ def autoUndoSubmit():
         if submit[items]['PlayerUUID'] in wait_to_undo_players: # contain player uuid
             wait_to_undo.append(items) # the submits that waits to undo
     
-    print('Waitting to undo:', len(wait_to_undo), 'item(s)') 
+    print('Undoing:', len(wait_to_undo), 'item(s)') 
     if len(wait_to_undo) == 0:
         print('Nothing new to undo.')
         return 0
@@ -446,7 +446,7 @@ def autoUndoSubmit():
         print('\nThe following submits were not able to undo.')
         print('Please try again later.')
         for items in error_uuid:
-            print(items)
+            print('  ' + items)
 
     print('\nDone!')
 
@@ -489,7 +489,7 @@ def pushLocalBanList():
         if items not in pushed_submits:
             wait_to_push.append(items)
 
-    print('Waitting to push:', len(wait_to_push), 'item(s)')
+    print('Pushing:', len(wait_to_push), 'item(s)')
     if len(wait_to_push) == 0:
         print('Nothing new to push.')
         return 0
