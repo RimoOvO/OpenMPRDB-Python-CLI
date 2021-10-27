@@ -238,6 +238,7 @@ def importKeyFile():
     print('Result: ', result['text'])
     return 0
 
+
 def tryJsonValid(path):
     '''
     If a json file is valid, return True; if invalid, return False
@@ -250,7 +251,8 @@ def tryJsonValid(path):
 
     return True
 
-def autoPush(server_uuid,player_uuid,player_name,points,comment,passphrase):
+
+def autoPush(server_uuid, player_uuid, player_name, points, comment, passphrase):
     '''
     Direct push submit without confirming.
     Push succeed: return 0
@@ -323,12 +325,13 @@ def autoPush(server_uuid,player_uuid,player_name,points,comment,passphrase):
 
     return 0
 
+
 def pushLocalBanList():
     '''
     Auto push local ban list to remote server.
     '''
     conf.read('mprdb.ini')
-    args_path = args.name # get file path from args
+    args_path = args.name  # get file path from args
     ini_path = conf.get('mprdb', 'banlist_path')
     error_uuid = []
     count = 0
@@ -345,12 +348,13 @@ def pushLocalBanList():
         return 0
 
     # get submits that you pushed
-    pushed_submits = [] # saved all pushed player uuid that remote server saved
+    pushed_submits = []  # saved all pushed player uuid that remote server saved
     server_uuid = conf.get('mprdb', 'serveruuid')
-    response = getDetailListFromServer('call',server_uuid)
+    response = getDetailListFromServer('call', server_uuid)
     try:
         pushed_submits_list = response['submits']
     except:
+        # if your server is new, there is no banned player.
         pushed_submits_list = []
         pushed_nothing = True
 
@@ -364,16 +368,15 @@ def pushLocalBanList():
         if content[uuid_index + 12] == " ":  # with space
             player_uuid = content[uuid_index + 13:uuid_index + 49]
         if content[uuid_index + 12] != " ":  # without space
-         player_uuid = content[uuid_index + 12:uuid_index + 48]
-    
-        pushed_submits.append(player_uuid)
+            player_uuid = content[uuid_index + 12:uuid_index + 48]
 
+        pushed_submits.append(player_uuid)
 
     # read the local ban list
     # the submit that get from other servers will be skip. with tag:[MPRDB]
-    local_ban_list = [] # saved all submit uuid that local saved now
+    local_ban_list = []  # saved all submit uuid that local saved now
     with open(banlist_path, 'r', encoding='utf-8') as f:
-        ban_list = json.loads(f.read()) 
+        ban_list = json.loads(f.read())
     for submit in ban_list:
         reason = submit['reason']
         if reason.find("[MPRDB]") >= 0:
@@ -387,8 +390,8 @@ def pushLocalBanList():
     for uuid in local_ban_list:
         if uuid not in pushed_submits:
             wait_to_push.append(uuid)
-            
-    print('Waitting to push:',len(wait_to_push),'item(s)')
+
+    print('Waitting to push:', len(wait_to_push), 'item(s)')
     if len(wait_to_push) == 0:
         print('Nothing new to push.')
         return 0
@@ -396,14 +399,16 @@ def pushLocalBanList():
     passphrase = loadPassphrase()
 
     for submit in ban_list:
-        if submit['uuid'] in wait_to_push: # scan the local ban list, if it is in the wait_to_push, load the submit info
+        # scan the local ban list, if it is in the wait_to_push, load the submit info
+        if submit['uuid'] in wait_to_push:
             comment = submit['reason']
             player_name = submit['name']
             player_uuid = submit['uuid']
             points = '-1'
 
             # print(server_uuid,player_uuid,player_name,points,comment,passphrase)
-            result = autoPush(server_uuid,player_uuid,player_name,points,comment,passphrase)
+            result = autoPush(server_uuid, player_uuid,
+                              player_name, points, comment, passphrase)
 
             if result != 0:
                 error_uuid.append(player_uuid)
@@ -421,6 +426,7 @@ def pushLocalBanList():
     print('Done!')
 
     return 0
+
 
 def exportPublicKey(keyid):
     '''
@@ -1280,14 +1286,14 @@ def getServerKey():
     return 0
 
 
-def getDetailListFromServer(mode: str ,serverid = 'None'):
+def getDetailListFromServer(mode: str, serverid='None'):
     '''
     List all submits from a server.
     mode can be normal or call
     If you call this function in main function , set mode to normal , it will display a list. 
     If you call this function in other function , set mode to call , put a uuid, is will return the submit dict.
     '''
-    if serverid == 'None': # if it did not receive serverid , it will get it from the args input
+    if serverid == 'None':  # if it did not receive serverid , it will get it from the args input
         serverid = args.uuid
         server_uuid = serverInfoMap(serverid, "uuid")
     else:
@@ -1584,7 +1590,7 @@ def backup(banlistIsNew: bool):
     timepoint = str(time.strftime("%Y%m%d-%H%M%S", time.localtime()))
     if not os.path.exists("backup"):
         os.makedirs("backup")
-    
+
     with open('banned-players.json', 'r') as f:
         banned_players_list = json.loads(f.read())
     if len(banned_players_list) == 0:
@@ -1680,7 +1686,8 @@ def generateBanList():
     source = conf.get('mprdb', 'ban_source')
     expires = conf.get('mprdb', 'ban_expires')
     reason = conf.get('mprdb', 'ban_reason')
-    reason = '[MPRDB] ' + reason # Mark submits downloaded by other servers, to prevent from repeating deduction
+    # Mark submits downloaded by other servers, to prevent from repeating deduction
+    reason = '[MPRDB] ' + reason
     changed = False
     banlistIsNew = False
     player_not_found = []
@@ -1725,11 +1732,13 @@ def generateBanList():
                 player_name, i = searchOnline(
                     player_uuid, i, changed, banlist, banlistIsNew)
                 if player_name == '-3':
-                    print("\nAn error occurred while searching the player.Try again later.")
+                    print(
+                        "\nAn error occurred while searching the player.Try again later.")
                     print('Nothing changed.')
                     exit()
                 if player_name == '-2':
-                    print("\nAn error occurred while searching the player.Try again later.")
+                    print(
+                        "\nAn error occurred while searching the player.Try again later.")
                     print('Solved '+str(i)+' item<s>.')
                     exit()
                 if player_name == '-1':
@@ -1747,11 +1756,11 @@ def generateBanList():
                     'source': source, 'expires': expires, 'reason': reason}
             banlist.append(info)  # new ban list
             changed = True
-    
+
     if len(player_not_found) > 0:
         print('\nThe players following not found.')
         for items in player_not_found:
-            print('  ',items)
+            print('  ', items)
 
     if changed:
         print('\nSolved '+str(i)+' item<s>.')
@@ -1761,6 +1770,7 @@ def generateBanList():
         print('\nNothing changed.')
 
     return 0
+
 
 def ovo(dist):
     '''
@@ -1789,7 +1799,7 @@ def updateMainController():
     Example,you only want to generate a new ban list ,  use python mpr.py --update -f1 -f2 , to disable the first two functions
     '''
 
-    f1 = f2 = f3 = f4= True
+    f1 = f2 = f3 = f4 = True
     f1 = args.function1
     f2 = args.function2
     f3 = args.function3
@@ -1810,6 +1820,7 @@ def updateMainController():
         pushLocalBanList()
     return 0
 
+
 def progressRun(i, start_time=time.time(), scale=50):
     '''
     Display progress bar
@@ -1828,6 +1839,7 @@ def progressController(precent):
     '''
     i = int(precent / 2)  # scale as 50 ,so convert the upper limit to 50% ,or the progress bar will be too long
     progressRun(i)
+
 
 if __name__ == "__main__":
     checkArgument()
@@ -1859,7 +1871,5 @@ if __name__ == "__main__":
         updateMainController()
     elif args.push == True:
         pushLocalBanList()
-        # x = autoPush('c24347ae-58dd-44e5-b2d9-69943adb1c0f','2e2cbdb5-83b3-4cc0-aa00-e5e81586cbb9',"Awdx",'-1','xccc')  
-        # print(x)
     else:
         print('The main argument is missing!')
