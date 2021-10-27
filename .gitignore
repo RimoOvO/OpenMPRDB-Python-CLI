@@ -3,6 +3,8 @@
 /TrustPublicKey/
 /backup/
 /build/
+/__pycache__/
+*.pyc
 *.asc
 *.json
 *.swp
