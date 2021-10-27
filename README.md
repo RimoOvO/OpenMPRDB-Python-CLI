@@ -70,14 +70,19 @@ install then manually or use pip install -r requirements.txt
 
     --listfrom
       List all submits from a server : -u [Server UUID]
+    
+    --push
+      Push local submits that your server created to remote server : [-n [BanList Path]]
+      [BanList Path] : Optional, to define a ban list, the default is in mpr.ini 
 
     --update
-      Update ban list.
+      Update local and remote ban list.
 
         disable argument : (optional)
         pullSubmitFromTrustedServer() >> -f1
         generateReputationBase() >> -f2
         generateBanList() >> -f3
+        pullLocalBanList() >> -f4
 
         Example,you only want to generate a new ban list , use :
-        python mpr.py --update -f1 -f2 , to disable the first two functions
+        python mpr.py --update -f1 -f2 -f4, to disable the other functions
