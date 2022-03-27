@@ -20,7 +20,7 @@ def checkArgument():
     '''
     if len(sys.argv) == 1:
         helpInfo()
-        exit()
+        sys.exit(1)
     return 0
 
 
@@ -299,7 +299,7 @@ def autoPush(server_uuid, player_uuid, player_name, points, comment, passphrase)
     except:
         # print('An error occurred when putting data.')
         # print(res)
-        # exit()
+        # sys.exit(1)
         return player_uuid
 
     if not os.path.exists('submit.json'):
@@ -706,7 +706,7 @@ def generateKeys(name, email, passphrase, choice, comment):
     # check status
     if fingerprint == '':
         print('Failed! Try again or check the folders gnupg and wingpg.')
-        exit()
+        sys.exit(1)
     # export keys to memory
     ascii_armored_public_keys = gpg.export_keys(fingerprint)
     ascii_armored_private_keys = gpg.export_keys(
@@ -771,7 +771,7 @@ def loadPassphrase():
         passphrase = args.passphrase
     else:
         print('Missing argument --passphrase.')
-        exit()
+        sys.exit(1)
     return passphrase
 
 
@@ -831,7 +831,7 @@ def registerServer():
     # check output file exists
     if not os.path.exists('message.txt.asc'):
         print('Failed to sign file. Check your key and passphrase.')
-        exit()
+        sys.exit(1)
     # put data
     data = generateRegisterJson()
     url = "https://test.openmprdb.org/v1/server/register"
@@ -843,7 +843,7 @@ def registerServer():
     except:
         print('An error occurred when putting data.')
         print(res)
-        exit()
+        sys.exit(1)
 
     # check status and edit mprdb.ini
     status = response.get("status")
@@ -876,7 +876,7 @@ def getPlayerName(uuid):
     response = getData(url)
     if response.text == "":
         print("Player not found from this UUID!")
-        exit()
+        sys.exit(1)
     else:
         result = response.json()
         player_name = result["name"]
@@ -893,13 +893,13 @@ def getPlayerUUID(name):
     except:
         print('An error occurred when getting data.')
         print(response)
-        exit()
+        sys.exit(1)
 
     if result["code"] == "player.found":
         player_uuid = result["data"]["player"]["id"]
     else:
         print("Player not found from this name!")
-        exit()
+        sys.exit(1)
     return player_uuid
 
 
@@ -910,7 +910,7 @@ def newSubmit():
     # check arguments
     if args.name == 'None' or args.reason == 'None' or args.score == 'None':
         print('Missing parameter : --name or --reason or --score')
-        exit()
+        sys.exit(1)
 
     # load arguments and set variables
     player_info = args.name  # set player name or player uuid to player_info
@@ -920,7 +920,7 @@ def newSubmit():
         score = float(args.score)
     except:
         print('Score invalid ! Please input it in range [-1,0) and (0,1]')
-        exit()
+        sys.exit(1)
 
     player_name = ''
     player_uuid = ''
@@ -953,7 +953,7 @@ def newSubmit():
     try:
         input("Press any key to submit , use Ctrl+C to cancel.")
     except:
-        exit()
+        sys.exit(0)
 
     # write message
     with open("message.txt", 'r+', encoding='utf-8') as f:
@@ -985,7 +985,7 @@ def newSubmit():
     except:
         print('An error occurred when putting data.')
         print(res)
-        exit()
+        sys.exit(1)
 
     if not os.path.exists('submit.json'):
         with open('submit.json', 'w+') as f:
@@ -1099,7 +1099,7 @@ def deleteSubmit():
     # exit if not found
     if not submit.get(delete_uuid):
         print('Commit not found!')
-        exit()
+        sys.exit(1)
 
     if not os.path.exists('submit-others.json'):
         with open('submit-others.json', 'w+') as f:
@@ -1120,7 +1120,7 @@ def deleteSubmit():
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
-        exit()
+        sys.exit(0)
 
     # writing message
     ticks = str(int(time.time()))
@@ -1150,7 +1150,7 @@ def deleteSubmit():
     except:
         print('An error occurred when deleting this submit.')
         print(res)
-        exit()
+        sys.exit(1)
 
     commit = {}
     with open('submit-others.json', 'r', encoding='utf-8') as f:
@@ -1210,7 +1210,7 @@ def deleteServer():
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
-        exit()
+        sys.exit(0)
 
     # writing message
     ticks = str(int(time.time()))
@@ -1241,7 +1241,7 @@ def deleteServer():
     except:
         print('An error occurred when deleting server from remote server.')
         print(res)
-        exit()
+        sys.exit(1)
 
     commit = {}
     with open('submit-others.json', 'r', encoding='utf-8') as f:
@@ -1285,7 +1285,7 @@ def listServer():
     except:
         print('An error occurred when getting server list.')
         print(res)
-        exit()
+        sys.exit(1)
 
     df = pd.DataFrame(response["servers"])
     # hide key "public_key" here, it's useless now
@@ -1300,7 +1300,7 @@ def weightServer(server_uuid, weight):
     '''
     if weight <= 0 or weight > 5:
         print('Invalid weight value . It should be in range (0,5] ')
-        exit()
+        sys.exit(1)
 
     with open("weight.json", 'r') as f:
         key_list = json.loads(f.read())
@@ -1334,7 +1334,7 @@ def serverInfoMap(id, info: str):
     except:
         print('An error occurred when getting server list.')
         print(res)
-        exit()
+        sys.exit(1)
 
     if len(id) == 36 and info == 'public_key':  # uuid>>public_key
         uuid_dict = {}  # dict "uuid":"public_key"
@@ -1414,10 +1414,10 @@ def getServerKey():
     if choice == 'download' or choice == 'd':  # check in download mode
         if args.uuid == 'None':
             print('Missing argument --uuid.')
-            exit()
+            sys.exit(1)
     elif args.uuid == 'None' or args.weight == 'None':  # check in normal mode
         print('Missing argument --uuid or --weight.')
-        exit()
+        sys.exit(1)
 
     # two kinds of uuid , long:36 and short:16
     if len(serverid) == 16:
@@ -1436,12 +1436,12 @@ def getServerKey():
     try:
         input("Press any key to continue , use Ctrl+C to cancel.")
     except:
-        exit()
+        sys.exit(0)
 
     if choice == 'd' or choice == 'download':  # only download key as a file
         downloadKey(server_uuid, serverInfoMap(server_uuid, 'public_key'))
         print('Public key has saved to file.')
-        exit()
+        sys.exit(0)
 
     if choice == 'None':  # save and import
         downloadKey(server_uuid, serverInfoMap(server_uuid, 'public_key'))
@@ -1477,7 +1477,7 @@ def getDetailListFromServer(mode: str, serverid='None'):
     except:
         print('An error occurred when getting data.')
         print(res)
-        exit()
+        sys.exit(1)
 
     if mode == 'call':
         return response
@@ -1487,7 +1487,7 @@ def getDetailListFromServer(mode: str, serverid='None'):
     except:
         print("This server may not exist or may have been deleted.")
         print(res)
-        exit()
+        sys.exit(1)
 
     print(df1)
     return 0
@@ -1506,7 +1506,7 @@ def getSubmitDetail():
     except:
         print('An error occurred when getting data.')
         print(res)
-        exit()
+        sys.exit(1)
 
     print('Submit UUID: ' + response['uuid'])
     print('Server UUID: ' + response['server_uuid'])
@@ -1673,7 +1673,7 @@ def generateReputationBase():
         if weight.get(server) is None:
             print("Server : " + server + " has no weight set.")
             input("Press any key to exit")
-            exit()
+            sys.exit(0)
         else:
             # The weight of each trusted server is different
             pownum = float(weight.get(server))
@@ -1905,12 +1905,12 @@ def generateBanList():
                     print(
                         "\nAn error occurred while searching the player.Try again later.")
                     print('Nothing changed.')
-                    exit()
+                    sys.exit(0)
                 if player_name == '-2':
                     print(
                         "\nAn error occurred while searching the player.Try again later.")
                     print('Solved '+str(i)+' item<s>.')
-                    exit()
+                    sys.exit(0)
                 if player_name == '-1':
                     # print("\nPlayer: " + player_uuid + " not found! < " +str(i)+" / "+str(banamount)+" >")
                     player_not_found.append(player_uuid)
