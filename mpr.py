@@ -32,6 +32,10 @@ def preSetup():
     if not os.path.exists('message.txt'):
         with open('message.txt', 'w+') as f:
             f.write('')
+    # ini file
+    if not os.path.exists('mprdb.ini'):
+        with open('mprdb.ini', 'w+') as f:
+            f.write('[mprdb]')
     # gnupg
     if not os.path.exists('gnupg'):
         os.mkdir('gnupg')
